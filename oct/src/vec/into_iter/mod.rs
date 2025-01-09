@@ -1,41 +1,32 @@
-// Copyright 2024 Gabriel Bjørnager Jensen.
+// Copyright 2024-2025 Gabriel Bjørnager Jensen.
 //
-// This file is part of Oct.
-//
-// Oct is free software: you can redistribute it
-// and/or modify it under the terms of the GNU
-// Lesser General Public License as published by
-// the Free Software Foundation, either version 3
-// of the License, or (at your option) any later
-// version.
-//
-// Oct is distributed in the hope that it will be
-// useful, but WITHOUT ANY WARRANTY; without even
-// the implied warranty of MERCHANTABILITY or FIT-
-// NESS FOR A PARTICULAR PURPOSE. See the GNU Less-
-// er General Public License for more details.
-//
-// You should have received a copy of the GNU Less-
-// er General Public License along with Oct. If
-// not, see <https://www.gnu.org/licenses/>.
+// This Source Code Form is subject to the terms of
+// the Mozilla Public License, v. 2.0. If a copy of
+// the MPL was not distributed with this file, you
+// can obtain one at:
+// <https://mozilla.org/MPL/2.0/>.
 
 #[cfg(test)]
 mod tests;
 
 use core::iter::{DoubleEndedIterator, ExactSizeIterator, FusedIterator};
 use core::mem::MaybeUninit;
+use core::ptr::drop_in_place;
 use core::slice;
 
-/// Iterator to a sized slice.
+/// Owning iterator to a vector.
+///
+/// This type is exclusively used by the deconstruction of the [`Vec`](crate::vec::Vec) type.
+/// When just borrowing such vectors, the standard library's <code>core::slice::{[Iter](core::slice::Iter), [IterMut](core::slice::IterMut)}</code> types are used instead.
 #[must_use]
-pub struct SizedIter<T, const N: usize> {
+pub struct IntoIter<T, const N: usize> {
 	buf: [MaybeUninit<T>; N],
 
 	pos: usize,
 	len: usize,
 }
 
-impl<T, const N: usize> SizedIter<T, N> {
+impl<T, const N: usize> IntoIter<T, N> {
 	/// Constructs a new, fixed-size iterator.
 	#[inline(always)]
 	pub(crate) const unsafe fn new(buf: [MaybeUninit<T>; N], len: usize) -> Self {
@@ -71,21 +62,21 @@ impl<T, const N: usize> SizedIter<T, N> {
 	}
 }
 
-impl<T, const N: usize> AsMut<[T]> for SizedIter<T, N> {
+impl<T, const N: usize> AsMut<[T]> for IntoIter<T, N> {
 	#[inline(always)]
 	fn as_mut(&mut self) -> &mut [T] {
 		self.as_mut_slice()
 	}
 }
 
-impl<T, const N: usize> AsRef<[T]> for SizedIter<T, N> {
+impl<T, const N: usize> AsRef<[T]> for IntoIter<T, N> {
 	#[inline(always)]
 	fn as_ref(&self) -> &[T] {
 		self.as_slice()
 	}
 }
 
-impl<T: Clone, const N: usize> Clone for SizedIter<T, N> {
+impl<T: Clone, const N: usize> Clone for IntoIter<T, N> {
 	#[inline]
 	fn clone(&self) -> Self {
 		let mut buf = [const { MaybeUninit::<T>::uninit() };N];
@@ -108,7 +99,7 @@ impl<T: Clone, const N: usize> Clone for SizedIter<T, N> {
 	}
 }
 
-impl<T, const N: usize> DoubleEndedIterator for SizedIter<T, N> {
+impl<T, const N: usize> DoubleEndedIterator for IntoIter<T, N> {
 	#[inline]
 	fn next_back(&mut self) -> Option<Self::Item> {
 		if self.len == 0x0 { return None };
@@ -123,11 +114,25 @@ impl<T, const N: usize> DoubleEndedIterator for SizedIter<T, N> {
 	}
 }
 
-impl<T, const N: usize> ExactSizeIterator for SizedIter<T, N> { }
+impl<T, const N: usize> Drop for IntoIter<T, N> {
+	#[inline(always)]
+	fn drop(&mut self) {
+		// Drop every element that hasn't been consumed.
 
-impl<T, const N: usize> FusedIterator for SizedIter<T, N> { }
+		let remaining = self.as_mut_slice();
+		unsafe { drop_in_place(remaining) };
 
-impl<T, const N: usize> Iterator for SizedIter<T, N> {
+		// We do not need to ensure that `self` is in a
+		// valid state after this call to `drop`.
+		// `MaybeUninit` also doesn't run destructors.
+	}
+}
+
+impl<T, const N: usize> ExactSizeIterator for IntoIter<T, N> { }
+
+impl<T, const N: usize> FusedIterator for IntoIter<T, N> { }
+
+impl<T, const N: usize> Iterator for IntoIter<T, N> {
 	type Item = T;
 
 	#[inline]
@@ -157,9 +162,7 @@ impl<T, const N: usize> Iterator for SizedIter<T, N> {
 
 		// Drop each skipped element.
 
-		for item in skipped {
-			unsafe { item.assume_init_drop() };
-		}
+		unsafe { drop_in_place(skipped) };
 
 		// Read the final element.
 

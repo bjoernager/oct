@@ -1,23 +1,10 @@
-// Copyright 2024 Gabriel Bjørnager Jensen.
+// Copyright 2024-2025 Gabriel Bjørnager Jensen.
 //
-// This file is part of Oct.
-//
-// Oct is free software: you can redistribute it
-// and/or modify it under the terms of the GNU
-// Lesser General Public License as published by
-// the Free Software Foundation, either version 3
-// of the License, or (at your option) any later
-// version.
-//
-// Oct is distributed in the hope that it will be
-// useful, but WITHOUT ANY WARRANTY; without even
-// the implied warranty of MERCHANTABILITY or FIT-
-// NESS FOR A PARTICULAR PURPOSE. See the GNU Less-
-// er General Public License for more details.
-//
-// You should have received a copy of the GNU Less-
-// er General Public License along with Oct. If
-// not, see <https://www.gnu.org/licenses/>.
+// This Source Code Form is subject to the terms of
+// the Mozilla Public License, v. 2.0. If a copy of
+// the MPL was not distributed with this file, you
+// can obtain one at:
+// <https://mozilla.org/MPL/2.0/>.
 
 use crate::{Discriminants, Repr};
 
@@ -66,6 +53,8 @@ pub fn decode_enum(data: DataEnum, repr: Repr) -> TokenStream {
 
 		#[inline]
 		fn decode(stream: &mut ::oct::decode::Input) -> ::core::result::Result<Self, Self::Error> {
+			use ::core::result::Result;
+
 			let discriminant = <#repr as ::oct::decode::Decode>::decode(stream)
 				.map_err(::core::convert::Into::<::core::convert::Infallible>::into)
 				.map_err(::oct::error::EnumDecodeError::InvalidDiscriminant)?;
@@ -73,10 +62,10 @@ pub fn decode_enum(data: DataEnum, repr: Repr) -> TokenStream {
 			let this = match discriminant {
 				#(#discriminants => #values,)*
 
-				value => return ::core::result::Result::Err(::oct::error::EnumDecodeError::UnassignedDiscriminant { value }),
+				value => return Result::Err(::oct::error::EnumDecodeError::UnassignedDiscriminant { value }),
 			};
 
-			::core::result::Result::Ok(this)
+			Result::Ok(this)
 		}
 	}
 }

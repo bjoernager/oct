@@ -1,26 +1,14 @@
-// Copyright 2024 Gabriel Bjørnager Jensen.
+// Copyright 2024-2025 Gabriel Bjørnager Jensen.
 //
-// This file is part of Oct.
-//
-// Oct is free software: you can redistribute it
-// and/or modify it under the terms of the GNU
-// Lesser General Public License as published by
-// the Free Software Foundation, either version 3
-// of the License, or (at your option) any later
-// version.
-//
-// Oct is distributed in the hope that it will be
-// useful, but WITHOUT ANY WARRANTY; without even
-// the implied warranty of MERCHANTABILITY or FIT-
-// NESS FOR A PARTICULAR PURPOSE. See the GNU Less-
-// er General Public License for more details.
-//
-// You should have received a copy of the GNU Less-
-// er General Public License along with Oct. If
-// not, see <https://www.gnu.org/licenses/>.
+// This Source Code Form is subject to the terms of
+// the Mozilla Public License, v. 2.0. If a copy of
+// the MPL was not distributed with this file, you
+// can obtain one at:
+// <https://mozilla.org/MPL/2.0/>.
 
-use crate::{SizedSlice, SizedStr};
 use crate::error::{LengthError, StringError, Utf8Error};
+use crate::vec::Vec;
+use crate::string::String;
 
 use core::borrow::{Borrow, BorrowMut};
 use core::mem::{ManuallyDrop, MaybeUninit};
@@ -32,9 +20,6 @@ use core::str::{self, FromStr};
 #[cfg(feature = "alloc")]
 use alloc::boxed::Box;
 
-#[cfg(feature = "alloc")]
-use alloc::string::String;
-
 #[cfg(feature = "std")]
 use std::ffi::OsStr;
 
@@ -44,8 +29,28 @@ use std::net::ToSocketAddrs;
 #[cfg(feature = "std")]
 use std::path::Path;
 
-impl<const N: usize> SizedStr<N> {
-	/// Constructs a fixed-size string from UTF-8 octets.
+impl<const N: usize> String<N> {
+	/// Constructs a fixed-size string from raw parts.
+	///
+	/// The provided parts are not tested in any way.
+	///
+	/// # Safety
+	///
+	/// The value of `len` may not exceed that of `N`.
+	/// Additionally, the octets in `buf` (from index zero up to the value of `len`) must be valid UTF-8 codepoints.
+	///
+	/// If any of these requirements are violated, behaviour is undefined.
+	#[inline(always)]
+	#[must_use]
+	pub const unsafe fn from_raw_parts(buf: [u8; N], len: usize) -> Self {
+		debug_assert!(len <= N, "cannot construct string that is longer than its capacity");
+
+		let buf = unsafe { buf.as_ptr().cast::<[MaybeUninit<u8>; N]>().read() };
+
+		Self(Vec::from_raw_parts(buf, len))
+	}
+
+	/// Constructs a new string from UTF-8 octets.
 	///
 	/// The passed slice is checked for its validity.
 	/// For a similar function *without* these checks, see [`from_utf8_unchecked`](Self::from_utf8_unchecked).
@@ -55,7 +60,12 @@ impl<const N: usize> SizedStr<N> {
 	/// Each byte value must be a valid UTF-8 code point.
 	#[inline]
 	pub const fn from_utf8(s: &[u8]) -> Result<Self, StringError> {
-		if s.len() > N { return Err(StringError::SmallBuffer(LengthError { capacity: N, len: s.len() })) };
+		if s.len() > N {
+			return Err(StringError::SmallBuffer(LengthError {
+				remaining: N,
+				count:     s.len(),
+			}));
+		}
 
 		let s = match str::from_utf8(s) {
 			Ok(s) => s,
@@ -74,7 +84,7 @@ impl<const N: usize> SizedStr<N> {
 		Ok(this)
 	}
 
-	/// Unsafely constructs a new, fixed-size string from UTF-8 octets.
+	/// Unsafely constructs a new string from UTF-8 octets.
 	///
 	/// # Safety
 	///
@@ -92,26 +102,6 @@ impl<const N: usize> SizedStr<N> {
 		// contain valid octets. It has also been tested to
 		// not exceed bounds.
 		Self::from_raw_parts(buf, s.len())
-	}
-
-	/// Constructs a fixed-size string from raw parts.
-	///
-	/// The provided parts are not tested in any way.
-	///
-	/// # Safety
-	///
-	/// The value of `len` may not exceed that of `N`.
-	/// Additionally, the octets in `buf` (from index zero up to the value of `len`) must be valid UTF-8 codepoints.
-	///
-	/// If any of these requirements are violated, behaviour is undefined.
-	#[inline(always)]
-	#[must_use]
-	pub const unsafe fn from_raw_parts(buf: [u8; N], len: usize) -> Self {
-		debug_assert!(len <= N, "cannot construct string that is longer than its capacity");
-
-		let buf = unsafe { buf.as_ptr().cast::<[MaybeUninit<u8>; N]>().read() };
-
-		Self(SizedSlice::from_raw_parts(buf, len))
 	}
 
 	/// Gets a pointer to the first octet.
@@ -177,15 +167,14 @@ impl<const N: usize> SizedStr<N> {
 
 	/// Destructs the provided string into its raw parts.
 	///
-	/// The returned values are valid to pass on to [`from_raw_parts`](Self::from_raw_parts).
+	/// The returned parts are valid to pass back to [`from_raw_parts`](Self::from_raw_parts).
 	///
 	/// The returned byte array is guaranteed to be fully initialised.
 	/// However, only octets up to an index of [`len`](Self::len) are also guaranteed to be valid UTF-8 codepoints.
 	#[inline(always)]
 	#[must_use]
 	pub const fn into_raw_parts(self) -> ([u8; N], usize) {
-		let Self(vec) = self;
-		let (buf, len) = vec.into_raw_parts();
+		let (buf, len) = self.into_bytes().into_raw_parts();
 
 		let init_buf = ManuallyDrop::new(buf);
 		let buf = unsafe { (&raw const init_buf).cast::<[u8; N]>().read() };
@@ -193,12 +182,19 @@ impl<const N: usize> SizedStr<N> {
 		(buf, len)
 	}
 
-	/// Deconstructs the string into a fixed-size byte slice.
+	/// Converts the string into a vector of bytes.
+	///
+	/// The underlying memory of the string is completely reused.
 	#[inline(always)]
 	#[must_use]
-	pub const fn into_bytes(self) -> SizedSlice<u8, N> {
-		let Self(v) = self;
-		v
+	pub const fn into_bytes(self) -> Vec<u8, N> {
+		let this = ManuallyDrop::new(self);
+
+		// SAFETY: `ManuallyDrop<T>` is transparent to `T`.
+		// We also aren't dropping `this`, so we can safely
+		// move out of it.
+		unsafe { (&raw const this).cast::<Vec<u8, N>>().read() }
+
 	}
 
 	/// Converts the fixed-size string into a boxed string slice.
@@ -213,17 +209,17 @@ impl<const N: usize> SizedStr<N> {
 
 	/// Converts the fixed-size string into a dynamic string.
 	///
-	/// The capacity of the resulting [`String`] object is equal to the value of `N`.
+	/// The capacity of the resulting [`alloc::string::String`] object is equal to the value of `N`.
 	#[cfg(feature = "alloc")]
 	#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
 	#[inline(always)]
 	#[must_use]
-	pub fn into_string(self) -> String {
+	pub fn into_string(self) -> alloc::string::String {
 		self.into_boxed_str().into_string()
 	}
 }
 
-impl<const N: usize> AsMut<str> for SizedStr<N> {
+impl<const N: usize> AsMut<str> for String<N> {
 	#[inline(always)]
 	fn as_mut(&mut self) -> &mut str {
 		self.as_mut_str()
@@ -232,7 +228,7 @@ impl<const N: usize> AsMut<str> for SizedStr<N> {
 
 #[cfg(feature = "std")]
 #[cfg_attr(doc, doc(cfg(feature = "std")))]
-impl<const N: usize> AsRef<OsStr> for SizedStr<N> {
+impl<const N: usize> AsRef<OsStr> for String<N> {
 	#[inline(always)]
 	fn as_ref(&self) -> &OsStr {
 		self.as_str().as_ref()
@@ -241,42 +237,42 @@ impl<const N: usize> AsRef<OsStr> for SizedStr<N> {
 
 #[cfg(feature = "std")]
 #[cfg_attr(doc, doc(cfg(feature = "std")))]
-impl<const N: usize> AsRef<Path> for SizedStr<N> {
+impl<const N: usize> AsRef<Path> for String<N> {
 	#[inline(always)]
 	fn as_ref(&self) -> &Path {
 		self.as_str().as_ref()
 	}
 }
 
-impl<const N: usize> AsRef<str> for SizedStr<N> {
+impl<const N: usize> AsRef<str> for String<N> {
 	#[inline(always)]
 	fn as_ref(&self) -> &str {
 		self.as_str()
 	}
 }
 
-impl<const N: usize> AsRef<[u8]> for SizedStr<N> {
+impl<const N: usize> AsRef<[u8]> for String<N> {
 	#[inline(always)]
 	fn as_ref(&self) -> &[u8] {
 		self.as_bytes()
 	}
 }
 
-impl<const N: usize> Borrow<str> for SizedStr<N> {
+impl<const N: usize> Borrow<str> for String<N> {
 	#[inline(always)]
 	fn borrow(&self) -> &str {
 		self.as_str()
 	}
 }
 
-impl<const N: usize> BorrowMut<str> for SizedStr<N> {
+impl<const N: usize> BorrowMut<str> for String<N> {
 	#[inline(always)]
 	fn borrow_mut(&mut self) -> &mut str {
 		self.as_mut_str()
 	}
 }
 
-impl<const N: usize> Deref for SizedStr<N> {
+impl<const N: usize> Deref for String<N> {
 	type Target = str;
 
 	#[inline(always)]
@@ -285,28 +281,25 @@ impl<const N: usize> Deref for SizedStr<N> {
 	}
 }
 
-impl<const N: usize> DerefMut for SizedStr<N> {
+impl<const N: usize> DerefMut for String<N> {
 	#[inline(always)]
 	fn deref_mut(&mut self) -> &mut Self::Target {
 		self.as_mut_str()
 	}
 }
 
-impl<const N: usize> FromStr for SizedStr<N> {
-	type Err = StringError;
+impl<const N: usize> FromStr for String<N> {
+	type Err = LengthError;
 
 	#[inline]
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
-		if s.len() > N { return Err(StringError::SmallBuffer(LengthError { capacity: N, len: s.len() })) };
-
-		let this = unsafe { Self::from_utf8_unchecked(s.as_bytes()) };
-		Ok(this)
+		Self::new(s)
 	}
 }
 
 #[cfg(feature = "std")]
 #[cfg_attr(doc, doc(cfg(feature = "std")))]
-impl<const N: usize> ToSocketAddrs for SizedStr<N> {
+impl<const N: usize> ToSocketAddrs for String<N> {
 	type Iter = <str as ToSocketAddrs>::Iter;
 
 	#[inline(always)]
@@ -315,7 +308,7 @@ impl<const N: usize> ToSocketAddrs for SizedStr<N> {
 	}
 }
 
-impl<const N: usize> TryFrom<char> for SizedStr<N> {
+impl<const N: usize> TryFrom<char> for String<N> {
 	type Error = <Self as FromStr>::Err;
 
 	#[inline(always)]
@@ -327,42 +320,42 @@ impl<const N: usize> TryFrom<char> for SizedStr<N> {
 	}
 }
 
-impl<const N: usize> TryFrom<&str> for SizedStr<N> {
+impl<const N: usize> TryFrom<&str> for String<N> {
 	type Error = <Self as FromStr>::Err;
 
 	#[inline(always)]
 	fn try_from(value: &str) -> Result<Self, Self::Error> {
-		Self::from_str(value)
+		Self::new(value)
 	}
 }
 
 #[cfg(feature = "alloc")]
 #[cfg_attr(doc, doc(cfg(feature = "alloc")))]
-impl<const N: usize> TryFrom<String> for SizedStr<N> {
+impl<const N: usize> TryFrom<alloc::string::String> for String<N> {
 	type Error = <Self as FromStr>::Err;
 
 	#[inline(always)]
-	fn try_from(value: String) -> Result<Self, Self::Error> {
-		Self::from_str(&value)
+	fn try_from(value: alloc::string::String) -> Result<Self, Self::Error> {
+		Self::new(&value)
 	}
 }
 
-/// See [`into_boxed_str`](SizedStr::into_boxed_str).
+/// See [`into_boxed_str`](String::into_boxed_str).
 #[cfg(feature = "alloc")]
 #[cfg_attr(doc, doc(cfg(feature = "alloc")))]
-impl<const N: usize> From<SizedStr<N>> for Box<str> {
+impl<const N: usize> From<String<N>> for Box<str> {
 	#[inline(always)]
-	fn from(value: SizedStr<N>) -> Self {
+	fn from(value: String<N>) -> Self {
 		value.into_boxed_str()
 	}
 }
 
-/// See [`into_string`](SizedStr::into_string).
+/// See [`into_string`](String::into_string).
 #[cfg(feature = "alloc")]
 #[cfg_attr(doc, doc(cfg(feature = "alloc")))]
-impl<const N: usize> From<SizedStr<N>> for String {
+impl<const N: usize> From<String<N>> for alloc::string::String {
 	#[inline(always)]
-	fn from(value: SizedStr<N>) -> Self {
+	fn from(value: String<N>) -> Self {
 		value.into_string()
 	}
 }

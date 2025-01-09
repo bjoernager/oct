@@ -1,15 +1,23 @@
+# Copyright 2024-2025 Gabriel Bjørnager Jensen.
+#
+# This Source Code Form is subject to the terms of
+# the Mozilla Public License, v. 2.0. If a copy of
+# the MPL was not distributed with this file, you
+# can obtain one at:
+# <https://mozilla.org/MPL/2.0/>.
+
 [package]
 name          = "oct-macros"
-version       = "0.14.5"
+version       = "0.15.0"
 edition       = "2021"
 description   = "Octonary transcoder. Procedural macros."
 documentation = "https://docs.rs/oct-macros/"
 homepage      = "https://crates.io/crates/oct-macros/"
+license       = "MPL-2.0"
 
 authors.workspace     = true
 readme.workspace      = true
 repository.workspace  = true
-license.workspace     = true
 keywords.workspace    = true
 categories.workspace  = true
 

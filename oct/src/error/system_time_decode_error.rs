@@ -1,23 +1,10 @@
-// Copyright 2024 Gabriel Bjørnager Jensen.
+// Copyright 2024-2025 Gabriel Bjørnager Jensen.
 //
-// This file is part of Oct.
-//
-// Oct is free software: you can redistribute it
-// and/or modify it under the terms of the GNU
-// Lesser General Public License as published by
-// the Free Software Foundation, either version 3
-// of the License, or (at your option) any later
-// version.
-//
-// Oct is distributed in the hope that it will be
-// useful, but WITHOUT ANY WARRANTY; without even
-// the implied warranty of MERCHANTABILITY or FIT-
-// NESS FOR A PARTICULAR PURPOSE. See the GNU Less-
-// er General Public License for more details.
-//
-// You should have received a copy of the GNU Less-
-// er General Public License along with Oct. If
-// not, see <https://www.gnu.org/licenses/>.
+// This Source Code Form is subject to the terms of
+// the Mozilla Public License, v. 2.0. If a copy of
+// the MPL was not distributed with this file, you
+// can obtain one at:
+// <https://mozilla.org/MPL/2.0/>.
 
 use core::error::Error;
 use core::fmt::{self, Display, Formatter};
@@ -27,7 +14,7 @@ use core::fmt::{self, Display, Formatter};
 /// Note that a UNIX timestamp is here defined as a signed, 64-bit integer denoting a difference of time to 1 january 1970, as measured in Greenwich using seconds.
 /// This error should therefore not occur on systems that use the same or a more precise counter.
 #[cfg_attr(doc, doc(cfg(feature = "std")))]
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 #[must_use]
 pub struct SystemTimeDecodeError {
 	/// The unrepresentable timestamp.

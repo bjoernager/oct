@@ -1,23 +1,10 @@
-// Copyright 2024 Gabriel Bjørnager Jensen.
+// Copyright 2024-2025 Gabriel Bjørnager Jensen.
 //
-// This file is part of Oct.
-//
-// Oct is free software: you can redistribute it
-// and/or modify it under the terms of the GNU
-// Lesser General Public License as published by
-// the Free Software Foundation, either version 3
-// of the License, or (at your option) any later
-// version.
-//
-// Oct is distributed in the hope that it will be
-// useful, but WITHOUT ANY WARRANTY; without even
-// the implied warranty of MERCHANTABILITY or FIT-
-// NESS FOR A PARTICULAR PURPOSE. See the GNU Less-
-// er General Public License for more details.
-//
-// You should have received a copy of the GNU Less-
-// er General Public License along with Oct. If
-// not, see <https://www.gnu.org/licenses/>.
+// This Source Code Form is subject to the terms of
+// the Mozilla Public License, v. 2.0. If a copy of
+// the MPL was not distributed with this file, you
+// can obtain one at:
+// <https://mozilla.org/MPL/2.0/>.
 
 use crate::PrimitiveDiscriminant;
 use crate::decode::Decode;
@@ -27,33 +14,25 @@ use crate::error::{
 	ItemDecodeError,
 	NonZeroDecodeError,
 	LengthError,
-	Utf8Error,
+	StringError,
 	SystemTimeDecodeError,
 };
-
-#[cfg(feature = "alloc")]
-use crate::error::CStringDecodeError;
 
 use core::convert::Infallible;
 use core::error::Error;
 use core::fmt::{self, Display, Formatter};
 use core::hint::unreachable_unchecked;
 
-/// A decoding failed.
+/// A generic decoding error type.
 ///
 /// The intended use of this type is by [derived](derive@Decode) implementations of [`Decode`].
 /// Manual implementors are recommended to use a custom or less generic type for the sake of efficiency.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 #[must_use]
 #[non_exhaustive]
 pub enum GenericDecodeError {
 	/// A string contained a non-UTF-8 sequence.
-	BadString(Utf8Error),
-
-	/// A C-like string contained a null byte.
-	#[cfg(feature = "std")]
-	#[cfg_attr(doc, doc(cfg(feature = "std")))]
-	NullString(CStringDecodeError),
+	BadString(StringError),
 
 	/// A non-null integer was null.
 	NullInteger(NonZeroDecodeError),
@@ -82,9 +61,6 @@ impl Display for GenericDecodeError {
 			Self::BadString(ref e)
 			=> write!(f, "{e}"),
 
-			Self::NullString(ref e)
-			=> write!(f, "{e}"),
-
 			Self::NullInteger(ref e)
 			=> write!(f, "{e}"),
 
@@ -106,9 +82,6 @@ impl Error for GenericDecodeError {
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match *self {
 			Self::BadString(ref e) => Some(e),
-
-			#[cfg(feature = "std")]
-			Self::NullString(ref e) => Some(e),
 
 			Self::NullInteger(ref e) => Some(e),
 
@@ -139,15 +112,6 @@ where
 	}
 }
 
-#[cfg(feature = "alloc")]
-#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
-impl From<CStringDecodeError> for GenericDecodeError {
-	#[inline(always)]
-	fn from(value: CStringDecodeError) -> Self {
-		Self::NullString(value)
-	}
-}
-
 impl<D, F> From<EnumDecodeError<D, F>> for GenericDecodeError
 where
 	D: Decode<Error: Into<Self>> + PrimitiveDiscriminant,
@@ -171,7 +135,7 @@ impl From<Infallible> for GenericDecodeError {
 	#[inline(always)]
 	fn from(_value: Infallible) -> Self {
 		// SAFETY: `Infallible` objects can never be con-
-		// structed
+		// structed.
 		unsafe { unreachable_unchecked() }
 	}
 }
@@ -197,18 +161,18 @@ impl From<LengthError> for GenericDecodeError {
 	}
 }
 
+impl From<StringError> for GenericDecodeError {
+	#[inline(always)]
+	fn from(value: StringError) -> Self {
+		Self::BadString(value)
+	}
+}
+
 #[cfg(feature = "std")]
 #[cfg_attr(doc, doc(cfg(feature = "std")))]
 impl From<SystemTimeDecodeError> for GenericDecodeError {
 	#[inline(always)]
 	fn from(value: SystemTimeDecodeError) -> Self {
 		Self::NarrowSystemTime(value)
-	}
-}
-
-impl From<Utf8Error> for GenericDecodeError {
-	#[inline(always)]
-	fn from(value: Utf8Error) -> Self {
-		Self::BadString(value)
 	}
 }

@@ -3,6 +3,44 @@
 This is the changelog of [Oct](https://crates.io/crates/oct/).
 See `README.md` for more information.
 
+## 0.15.0
+
+* Rename `SizedStr` to `String`
+* Rename `SizedSlice` to `Vec`
+* Mark `String::as_mut_str` with `const`
+* Update readme
+* Relicence under MPL 2.0
+* Licence logo
+* Rename `SizedIter` to `IntoIter`
+* Update docs
+* Update copyright notices
+* Add `vec`, `string`, and `slot` modules
+* Refactor tests
+* Clean up code
+* Rename `LengthError` fields
+* Implement `PartialEq` and `Eq` for some error types
+* Remove `Utf16Error` and `CStringDecodeError`
+* Rename `StrError` to `StringError`
+* Remove `Self: Sized` requirement from `SizedEncode`
+* Remove `T: Sized` requirement from `Encode` for `PhantomData<T>`
+* Unimplement `Decode` for `alloc::vec::Vec`, `alloc::string::String`, `CString`, `LinkedList`, `HashMap`, and `HashSet`
+* Unimplement `DecodeBorrowed` for `alloc::vec::Vec`, `alloc::string::String`, and `CString`
+* Implement `Debug` for `Output`
+* Remove `B: Sized` requirement from `Decode` for `Cow<'_, B>`
+* Add `must_use` attribute to `Vec::{each_ref, each_mut}`
+* Rework `Vec::set_len` and add `set_len_unchecked` method
+* Remove `{String, Vec}::capacity`
+* Implement `SizedEncode` for `PhantomPinned`
+* License Cargo manifests
+* License benchmarks
+* Add temporary `never-type`, `f16`, and `f128` feature flags
+* Remove `chars` and `char_indices` from `String`
+* Implement `Drop` for `IntoIter` and `Vec`
+* Implement `Encode`, `SizedEncode`, and `Decode` for `UnsafeCell`
+* Update error requirements for some `Encode` and `Decode` implementations
+* Fix soundness hole with `Vec::copy_from_slice`
+* Rename `Vec::into_vec` to `into_alloc_vec`
+
 ## 0.14.5
 
 * Update docs icon

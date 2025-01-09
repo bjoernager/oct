@@ -3,11 +3,11 @@
 Oct is a Rust crate for cheaply serialising (encoding) and deserialising (decoding) data structures to and from binary streams
 
 What separates this crate from others such as [Bincode](https://crates.io/crates/bincode/) or [Postcard](https://crates.io/crates/postcard/) is that this crate is extensively optimised for directly translating into binary encodings (whilst the mentioned crates specifically use Serde as a middle layer).
+
 The original goal of this project was specifically to guarantee size constraints for encodings on a per-type basis at compile-time.
 Therefore, this crate may be more suited for networking or other cases where many allocations are unwanted.
 
 Keep in mind that this project is still work-in-progress.
-Until the interfaces are stabilised, different facilities may be replaced, removed, or altered in a breaking way.
 
 This crate is compatible with `no_std`.
 
@@ -18,20 +18,20 @@ As Oct is optimised exclusively for a single, binary format, it *may* outperform
 The `oct-benchmarks` binary compares multiple scenarios using Oct and other, similar crates.
 According to my runs on an AMD Ryzen 7 3700X with default settings, these benchmarks indicate that Oct usually outperforms the other tested crates &ndash; as demonstrated in the following table:
 
-| Benchmark                          | [Bincode] | [Borsh] | Oct     | [Postcard] |
-| :--------------------------------- | --------: | ------: | ------: | ---------: |
-| `encode_u8`                        |     0.968 |   0.857 |   0.733 |      0.979 |
-| `encode_u32`                       |     1.065 |   0.999 |   0.730 |      2.727 |
-| `encode_u128`                      |     2.168 |   2.173 |   1.510 |      6.246 |
-| `encode_struct_unit`               |     0.000 |   0.000 |   0.000 |      0.000 |
-| `encode_struct_unnamed`            |     1.241 |   1.173 |   0.823 |      3.350 |
-| `encode_struct_named`              |     3.079 |   1.507 |   0.973 |      3.082 |
-| `encode_enum_unit`                 |     0.246 |   0.297 |   0.000 |      0.295 |
-| `decode_u8`                        |     0.942 |   0.962 |   0.922 |      0.923 |
-| `decode_non_zero_u8`               |     1.126 |   1.159 |   1.127 |      1.160 |
-| `decode_bool`                      |     1.040 |   1.099 |   1.055 |      1.177 |
-| **Total time** &#8594;             |    11.873 |  10.225 |   7.873 |     18.939 |
-| **Total deviation (p.c.)** &#8594; |       +51 |     +30 |      ±0 |       +141 |
+| Benchmark                          | [Bincode] | [Borsh] | Oct    | [Postcard] |
+| :--------------------------------- | --------: | ------: | -----: | ---------: |
+| `encode_u8`                        |    0.977s |  0.871s | 0.754s |     0.916s |
+| `encode_u32`                       |    0.967s |  0.983s | 0.730s |     2.727s |
+| `encode_u128`                      |    2.178s |  2.175s | 1.481s |     6.002s |
+| `encode_struct_unit`               |    0.000s |  0.000s | 0.000s |     0.000s |
+| `encode_struct_unnamed`            |    1.206s |  1.168s | 0.805s |     2.356s |
+| `encode_struct_named`              |    3.021s |  1.532s | 0.952s |     3.013s |
+| `encode_enum_unit`                 |    0.245s |  0.294s | 0.000s |     0.294s |
+| `decode_u8`                        |    0.952s |  0.895s | 0.885s |     0.894s |
+| `decode_non_zero_u8`               |    1.215s |  1.250s | 1.229s |     1.232s |
+| `decode_bool`                      |    1.204s |  1.224s | 1.126s |     1.176s |
+| **Total time** &#8594;             |   11.964s | 10.392s | 7.963s |    18.609s |
+| **Total deviation (p.c.)** &#8594; |       +50 |     +31 |     ±0 |       +134 |
 
 [Bincode]: https://crates.io/crates/bincode/
 [Borsh]: https://crates.io/crates/borsh/
@@ -40,7 +40,7 @@ According to my runs on an AMD Ryzen 7 3700X with default settings, these benchm
 All quantities are measured in seconds unless otherwise noted.
 
 Currently, Oct's weakest point seems to be decoding.
-Please note that I myself find large (relatively speaking) inconsistencies between runs in these last two benchmarks.
+Please note that I myself find large (relatively speaking) inconsistencies between runs in these last three benchmarks.
 Do feel free to conduct your own tests of Oct.
 
 ## Data model
@@ -56,20 +56,20 @@ See specific types' implementations for notes on their data models.
 **Note that the data model is currently not stabilised,** and may not necessarily be in the near future (at least before [specialisation](https://github.com/rust-lang/rust/issues/31844/)).
 It may therefore be undesired to store encodings long-term.
 
-## Usage
+## Usage & Examples
 
 This crate revolves around the `Encode` and `Decode` traits, both of which handle conversions to and from byte streams.
 
 Many standard types come implemented with Oct, including most primitives as well as some standard library types such as `Option` and `Result`.
 Some [features](#feature-flags) enable an extended set of implementations.
 
-It is recommended in most cases to simply derive these two traits for user-defined types (although this is only supported with enumerations and structures -- not untagged unions).
-Here, each field is *chained* according to declaration order:
+It is recommended in most cases to simply derive these two traits for user-defined types, although this is only supported for enumerations and structures &ndash; not untagged unions.
+When deriving, each field is *chained* according to declaration order:
 
 ```rust
-use oct::Slot;
 use oct::decode::Decode;
 use oct::encode::Encode;
+use oct::slot::Slot;
 
 #[derive(Debug, Decode, Encode, PartialEq)]
 struct Ints {
@@ -107,90 +107,12 @@ assert_eq!(
 assert_eq!(buf.read().unwrap(), VALUE);
 ```
 
-### Buffer types
-
-The `Encode` and `Decode` traits both rely on streams for carrying the manipulated bytes.
-
-These streams are separated into two type: *output streams* and *input streams*.
-The `Slot` type can be used to handle these streams.
-
-### Encoding
-
-To encode an object directly using the `Encode` trait, simply allocate a buffer for the encoding and wrap it in an `Output` object:
+The following is a more complete example of a UDP server/client for geographic data:
 
 ```rust
-use oct::encode::{Encode, Output, SizedEncode};
-
-let mut buf = [0x00; char::MAX_ENCODED_SIZE];
-let mut stream = Output::new(&mut buf);
-
-'Ж'.encode(&mut stream).unwrap();
-
-assert_eq!(buf, [0x16, 0x04, 0x00, 0x00].as_slice());
-```
-
-Streams can also be used to chain multiple objects together:
-
-```rust
-use oct::encode::{Encode, Output, SizedEncode};
-
-let mut buf = [0x0; char::MAX_ENCODED_SIZE * 0x5];
-let mut stream = Output::new(&mut buf);
-
-// Note: For serialising multiple characters, the
-// `String` and `SizedStr` types are usually
-// preferred.
-
-'ل'.encode(&mut stream).unwrap();
-'ا'.encode(&mut stream).unwrap();
-'م'.encode(&mut stream).unwrap();
-'د'.encode(&mut stream).unwrap();
-'ا'.encode(&mut stream).unwrap();
-
-assert_eq!(buf, [
-    0x44, 0x06, 0x00, 0x00, 0x27, 0x06, 0x00, 0x00,
-    0x45, 0x06, 0x00, 0x00, 0x2F, 0x06, 0x00, 0x00,
-    0x27, 0x06, 0x00, 0x00
-]);
-```
-
-If the encoded type additionally implements `SizedEncode`, then the maximum size of any encoding is guaranteed with the `MAX_ENCODED_SIZE` constant.
-
-### Decoding
-
-Decoding works with a similar syntax to encoding.
-To decode a byte array, simply call the `decode` method with an `Input` object:
-
-```rust
-use oct::decode::{Decode, Input};
-
-let data = [0x54, 0x45];
-let mut stream = Input::new(&data);
-
-assert_eq!(u16::decode(&mut stream).unwrap(), 0x4554);
-
-// Data can theoretically be reinterpretred:
-
-stream = Input::new(&data);
-
-assert_eq!(u8::decode(&mut stream).unwrap(), 0x54);
-assert_eq!(u8::decode(&mut stream).unwrap(), 0x45);
-
-// Including as tuples:
-
-stream = Input::new(&data);
-
-assert_eq!(<(u8, u8)>::decode(&mut stream).unwrap(), (0x54, 0x45));
-```
-
-## Examples
-
-A UDP server/client for geographic data:
-
-```rust
-use oct::Slot;
 use oct::decode::Decode;
 use oct::encode::{Encode, SizedEncode};
+use oct::slot::Slot;
 use std::io;
 use std::net::{SocketAddr, ToSocketAddrs, UdpSocket};
 use std::thread::spawn;
@@ -293,13 +215,13 @@ spawn(move || {
 
 Oct defines the following, default features:
 
-* `alloc`: Enables the `Slot` type and implementations for e.g. `Box` and `Arc`
-* `proc-macro`: Pulls the procedural macros from the [`oct-macros`](https://crates.io/crates/oct-macros/) crate
-* `std`: Enables implementations for types such as `Mutex` and `RwLock`
+* `alloc`: Enables the `Slot` type and implementations for types in `alloc`, e.g. `Box` and `Arc`
+* `proc-macro`: Pulls procedural macros from the [`oct-macros`](https://crates.io/crates/oct-macros/) crate
+* `std`: Enables implementations for types `std`, e.g. `Mutex` and `RwLock`
 
 ## Documentation
 
-Oct has its documentation written in-source for use by `rustdoc`.
+Oct has its documentation written alongside its source code for use by `rustdoc`.
 See [Docs.rs](https://docs.rs/oct/latest/oct/) for an on-line, rendered instance.
 
 Currently, these docs make use of some unstable features for the sake of readability.
@@ -310,16 +232,13 @@ The nightly toolchain is therefore required when rendering them.
 Oct does not accept source code contributions at the moment.
 This is a personal choice by the maintainer and may be undone in the future.
 
-Do however feel free to open up an issue on [GitLab](https://gitlab.com/bjoernager/oct/issues/) or (preferably) [GitHub](https://github.com/bjoernager/oct/issues/) if you feel the need to express any concerns over the project.
+Do however feel free to open an issue on [GitLab](https://gitlab.com/bjoernager/oct/issues/) or [GitHub](https://github.com/bjoernager/oct/issues/) if you feel the need to express any concerns over the project.
 
 ## Copyright & Licence
 
-Copyright 2024 Gabriel Bjørnager Jensen.
+Copyright 2024-2025 Gabriel Bjørnager Jensen.
 
-This program is free software: you can redistribute it and/or modify it under the terms of the GNU Lesser General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+The Source Code Forms of this project are &ndash; where noted as such &ndash; subject to the terms of the Mozilla Public License, v. 2.0.
+If a copy of the MPL was not distributed with this project, you can obtain one at <https://mozilla.org/MPL/2.0/>.
 
-This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-See the GNU Lesser General Public License for more details.
-
-You should have received a copy of the GNU Lesser General Public License along with this program.
-If not, see <https://www.gnu.org/licenses/>.
+<sub>Note that the `oct-benchmarks` executable is differently released under an MIT licence.</sub>

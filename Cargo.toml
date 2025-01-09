@@ -6,7 +6,6 @@ resolver = "2"
 authors    = ["Gabriel Bjørnager Jensen"]
 readme     = "README.md"
 repository = "https://mandelbrot.dk/oct/"
-license    = "LGPL-3.0-or-later"
 keywords   = ["api", "encoding", "io", "network", "no-std"]
 categories = ["encoding", "network-programming", "parsing"]
 

@@ -1,23 +1,10 @@
-// Copyright 2024 Gabriel Bjørnager Jensen.
+// Copyright 2024-2025 Gabriel Bjørnager Jensen.
 //
-// This file is part of Oct.
-//
-// Oct is free software: you can redistribute it
-// and/or modify it under the terms of the GNU
-// Lesser General Public License as published by
-// the Free Software Foundation, either version 3
-// of the License, or (at your option) any later
-// version.
-//
-// Oct is distributed in the hope that it will be
-// useful, but WITHOUT ANY WARRANTY; without even
-// the implied warranty of MERCHANTABILITY or FIT-
-// NESS FOR A PARTICULAR PURPOSE. See the GNU Less-
-// er General Public License for more details.
-//
-// You should have received a copy of the GNU Less-
-// er General Public License along with Oct. If
-// not, see <https://www.gnu.org/licenses/>.
+// This Source Code Form is subject to the terms of
+// the Mozilla Public License, v. 2.0. If a copy of
+// the MPL was not distributed with this file, you
+// can obtain one at:
+// <https://mozilla.org/MPL/2.0/>.
 
 use crate::error::InputError;
 
@@ -40,11 +27,11 @@ impl<'a> Input<'a> {
 
 	/// Reads bytes from the stream.
 	///
-	/// This method may be preferred over [`read_into`](Self::read_into) if the read data isn't directly needed, e.g. if an iterator is applied anyway to map the data.
+	/// This method may be preferred over [`read_into`](Self::read_into) if the read data aren't directly needed, such as if an iterator is applied anyway to map the data.
 	///
-	/// # Panics
+	/// # Errors
 	///
-	/// If the requested amount of bytes could not exactly be read, then this method will panic.
+	/// If the requested amount of bytes could not be exactly read, then this method will return an error.
 	#[inline]
 	pub const fn read(&mut self, count: usize) -> Result<&'a [u8], InputError> {
 		let remaining = self.buf.len() - self.pos;
@@ -70,11 +57,11 @@ impl<'a> Input<'a> {
 
 	/// Reads bytes from the stream into a predefined buffer.
 	///
-	/// This method may be preferred over [`read`](Self::read) if the read data **is** directly needed, e.g. if all required transformations can be done in-place.
+	/// This method may be preferred over [`read`](Self::read) if the read data are *directly* needed, e.g. if all required transformations can be done in-place.
 	///
-	/// # Panics
+	/// # Errors
 	///
-	/// If the provided buffer could not be completely filled, then this method will panic.
+	/// If the provided buffer could not be completely filled, then this method will return an error.
 	#[inline]
 	pub const fn read_into(&mut self, buf: &mut [u8]) -> Result<(), InputError> {
 		let count     = buf.len();

@@ -1,49 +1,36 @@
-// Copyright 2024 Gabriel Bjørnager Jensen.
+// Copyright 2024-2025 Gabriel Bjørnager Jensen.
 //
-// This file is part of Oct.
-//
-// Oct is free software: you can redistribute it
-// and/or modify it under the terms of the GNU
-// Lesser General Public License as published by
-// the Free Software Foundation, either version 3
-// of the License, or (at your option) any later
-// version.
-//
-// Oct is distributed in the hope that it will be
-// useful, but WITHOUT ANY WARRANTY; without even
-// the implied warranty of MERCHANTABILITY or FIT-
-// NESS FOR A PARTICULAR PURPOSE. See the GNU Less-
-// er General Public License for more details.
-//
-// You should have received a copy of the GNU Less-
-// er General Public License along with Oct. If
-// not, see <https://www.gnu.org/licenses/>.
+// This Source Code Form is subject to the terms of
+// the Mozilla Public License, v. 2.0. If a copy of
+// the MPL was not distributed with this file, you
+// can obtain one at:
+// <https://mozilla.org/MPL/2.0/>.
 
 use core::error::Error;
 use core::fmt::{self, Display, Formatter};
 
 /// A collection buffer was too small to contain all of its elements.
 ///
-/// Some data types use a statically-sized buffer whilst still allowing for partial usage of this buffer (e.g. [`SizedSlice`](crate::SizedSlice)).
+/// Some data types use a statically-sized buffer whilst still allowing for partial usage of this buffer (e.g. [`Vec`](crate::vec::Vec)).
 /// These types should return this error in cases where their size limit has exceeded.
 ///
-/// Taking [`SizedSlice`](crate::SizedSlice) as an example, it encodes its actual length before encoding its elements.
-/// It is allowed for any smaller-sized `SizedSlice` instance to decode a larger-sized encoding **if** the actual length is still within bounds.
+/// Taking `Vec` as an example, it encodes its actual length before encoding its elements.
+/// It is allowed for any smaller-sized `Vec` instance to decode a larger-sized encoding **if** the actual length is still within bounds.
 /// Otherwise, this error type is used to denote the error state.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 #[must_use]
 pub struct LengthError {
-	/// The total capacity of the buffer.
-	pub capacity: usize,
+	/// The remaining capacity of the buffer.
+	pub remaining: usize,
 
 	/// The required amount of elements.
-	pub len: usize,
+	pub count: usize,
 }
 
 impl Display for LengthError {
 	#[inline(always)]
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-		write!(f, "collection of size ({}) cannot hold ({}) elements", self.capacity, self.len)
+		write!(f, "collection with ({}) remaining size cannot hold ({}) more elements", self.remaining, self.count)
 	}
 }
 

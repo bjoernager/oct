@@ -1,23 +1,10 @@
-// Copyright 2024 Gabriel Bjørnager Jensen.
+// Copyright 2024-2025 Gabriel Bjørnager Jensen.
 //
-// This file is part of Oct.
-//
-// Oct is free software: you can redistribute it
-// and/or modify it under the terms of the GNU
-// Lesser General Public License as published by
-// the Free Software Foundation, either version 3
-// of the License, or (at your option) any later
-// version.
-//
-// Oct is distributed in the hope that it will be
-// useful, but WITHOUT ANY WARRANTY; without even
-// the implied warranty of MERCHANTABILITY or FIT-
-// NESS FOR A PARTICULAR PURPOSE. See the GNU Less-
-// er General Public License for more details.
-//
-// You should have received a copy of the GNU Less-
-// er General Public License along with Oct. If
-// not, see <https://www.gnu.org/licenses/>.
+// This Source Code Form is subject to the terms of
+// the Mozilla Public License, v. 2.0. If a copy of
+// the MPL was not distributed with this file, you
+// can obtain one at:
+// <https://mozilla.org/MPL/2.0/>.
 
 use crate::encode::Encode;
 use crate::error::{
@@ -34,9 +21,9 @@ use core::error::Error;
 use core::fmt::{self, Display, Formatter};
 use core::hint::unreachable_unchecked;
 
-/// A decoding failed.
+/// A generic encoding error type.
 ///
-/// The intended use of this type is by [derived](derive@crate::encode::Encode) implementations of [`Encode`](crate::encode::Encode).
+/// The intended use of this type is by [derived](derive@crate::encode::Encode) implementations of [`Encode`].
 /// Manual implementors are recommended to use a custom or less generic type for the sake of efficiency.
 #[derive(Debug)]
 #[must_use]
@@ -64,7 +51,6 @@ impl Display for GenericEncodeError {
 
 			Self::LargeUsize(ref e)
 			=> write!(f, "{e}"),
-
 		}
 	}
 }
@@ -81,6 +67,8 @@ impl Error for GenericEncodeError {
 		}
 	}
 }
+
+impl Eq for GenericEncodeError { }
 
 impl From<BorrowError> for GenericEncodeError {
 	#[inline(always)]
@@ -127,7 +115,7 @@ impl From<Infallible> for GenericEncodeError {
 	#[inline(always)]
 	fn from(_value: Infallible) -> Self {
 		// SAFETY: `Infallible` objects can never be con-
-		// structed
+		// structed.
 		unsafe { unreachable_unchecked() }
 	}
 }
@@ -150,5 +138,24 @@ impl From<UsizeEncodeError> for GenericEncodeError {
 	#[inline(always)]
 	fn from(value: UsizeEncodeError) -> Self {
 		Self::LargeUsize(value)
+	}
+}
+
+impl PartialEq for GenericEncodeError {
+	#[inline]
+	fn eq(&self, other: &Self) -> bool {
+		match *self {
+			Self::BadBorrow(..) => {
+				matches!(*other, Self::BadBorrow(..))
+			}
+
+			Self::LargeIsize(ref lvalue) => {
+				matches!(*other, Self::LargeIsize(ref rvalue) if *rvalue == *lvalue)
+			}
+
+			Self::LargeUsize(ref lvalue) => {
+				matches!(*other, Self::LargeUsize(ref rvalue) if *rvalue == *lvalue)
+			}
+		}
 	}
 }

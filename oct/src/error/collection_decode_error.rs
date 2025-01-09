@@ -1,23 +1,10 @@
-// Copyright 2024 Gabriel Bjørnager Jensen.
+// Copyright 2024-2025 Gabriel Bjørnager Jensen.
 //
-// This file is part of Oct.
-//
-// Oct is free software: you can redistribute it
-// and/or modify it under the terms of the GNU
-// Lesser General Public License as published by
-// the Free Software Foundation, either version 3
-// of the License, or (at your option) any later
-// version.
-//
-// Oct is distributed in the hope that it will be
-// useful, but WITHOUT ANY WARRANTY; without even
-// the implied warranty of MERCHANTABILITY or FIT-
-// NESS FOR A PARTICULAR PURPOSE. See the GNU Less-
-// er General Public License for more details.
-//
-// You should have received a copy of the GNU Less-
-// er General Public License along with Oct. If
-// not, see <https://www.gnu.org/licenses/>.
+// This Source Code Form is subject to the terms of
+// the Mozilla Public License, v. 2.0. If a copy of
+// the MPL was not distributed with this file, you
+// can obtain one at:
+// <https://mozilla.org/MPL/2.0/>.
 
 use core::convert::Infallible;
 use core::error::Error;
@@ -27,10 +14,6 @@ use core::fmt::{self, Display, Formatter};
 ///
 /// This type is intended as a partially-generic decode error for collections.
 /// It supports denoting an error for when the collection's length is invalid -- see the [`BadLength`](Self::BadLength) variant -- and when an element is invalid -- see the [`Item`](Self::BadItem)) variant.
-///
-/// The most common form of this type is <code>CollectionDecodeError<[Infallible](core::convert::Infallible), [ItemDecodeError](crate::error::ItemDecodeError)<[usize], ..></code>, but this may not always necessarily be the preferred form.
-///
-/// An example of a type using a different form is [`SizedStr`](crate::SizedStr), which uses <code>CollectionDecodeError<[`LengthError`](crate::error::LengthError), [Utf8Error](crate::error::Utf8Error)></code>.
 #[derive(Debug)]
 #[must_use]
 pub enum CollectionDecodeError<L, I> {

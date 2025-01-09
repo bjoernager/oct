@@ -1,25 +1,11 @@
-// Copyright 2024 Gabriel Bjørnager Jensen.
+// Copyright 2024-2025 Gabriel Bjørnager Jensen.
 //
-// This file is part of Oct.
-//
-// Oct is free software: you can redistribute it
-// and/or modify it under the terms of the GNU
-// Lesser General Public License as published by
-// the Free Software Foundation, either version 3
-// of the License, or (at your option) any later
-// version.
-//
-// Oct is distributed in the hope that it will be
-// useful, but WITHOUT ANY WARRANTY; without even
-// the implied warranty of MERCHANTABILITY or FIT-
-// NESS FOR A PARTICULAR PURPOSE. See the GNU Less-
-// er General Public License for more details.
-//
-// You should have received a copy of the GNU Less-
-// er General Public License along with Oct. If
-// not, see <https://www.gnu.org/licenses/>.
+// This Source Code Form is subject to the terms of
+// the Mozilla Public License, v. 2.0. If a copy of
+// the MPL was not distributed with this file, you
+// can obtain one at:
+// <https://mozilla.org/MPL/2.0/>.
 
-use oct::SizedStr;
 use oct::encode::{Encode, SizedEncode};
 use std::convert::Infallible;
 use std::marker::PhantomData;
@@ -51,7 +37,6 @@ fn test_sized_encode() {
 	assert_encoded_size!(i64,                       0x8);
 	assert_encoded_size!(i8,                        0x1);
 	assert_encoded_size!(isize,                     0x2);
-	assert_encoded_size!(SizedStr::<0x45>,          0x47);
 	assert_encoded_size!(Infallible,                0x0);
 	assert_encoded_size!(IpAddr,                    0x11);
 	assert_encoded_size!(Ipv4Addr,                  0x4);

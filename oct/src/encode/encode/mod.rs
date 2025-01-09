@@ -1,23 +1,10 @@
-// Copyright 2024 Gabriel Bjørnager Jensen.
+// Copyright 2024-2025 Gabriel Bjørnager Jensen.
 //
-// This file is part of Oct.
-//
-// Oct is free software: you can redistribute it
-// and/or modify it under the terms of the GNU
-// Lesser General Public License as published by
-// the Free Software Foundation, either version 3
-// of the License, or (at your option) any later
-// version.
-//
-// Oct is distributed in the hope that it will be
-// useful, but WITHOUT ANY WARRANTY; without even
-// the implied warranty of MERCHANTABILITY or FIT-
-// NESS FOR A PARTICULAR PURPOSE. See the GNU Less-
-// er General Public License for more details.
-//
-// You should have received a copy of the GNU Less-
-// er General Public License along with Oct. If
-// not, see <https://www.gnu.org/licenses/>.
+// This Source Code Form is subject to the terms of
+// the Mozilla Public License, v. 2.0. If a copy of
+// the MPL was not distributed with this file, you
+// can obtain one at:
+// <https://mozilla.org/MPL/2.0/>.
 
 #[cfg(test)]
 mod tests;
@@ -32,7 +19,7 @@ use crate::error::{
 	UsizeEncodeError,
 };
 
-use core::cell::{Cell, LazyCell, RefCell};
+use core::cell::{Cell, LazyCell, RefCell, UnsafeCell};
 use core::convert::Infallible;
 use core::ffi::CStr;
 use core::hash::BuildHasher;
@@ -96,13 +83,13 @@ use std::time::{SystemTime, UNIX_EPOCH};
 /// It is recommended to simply derive this trait for custom types.
 /// It can, of course, also just be manually implemented.
 ///
-/// If all possible encodings have a known maximum size, then the [`SizedEncode`](crate::encode::SizedEncode) trait should additionally be implemented.
+/// If all possible encodings have a known, maximum size, then the [`SizedEncode`](crate::encode::SizedEncode) trait should be considered as well.
 ///
 /// # Examples
 ///
 /// A manual implementation of `Encode`:
 ///
-/// ```
+/// ```rust
 /// // Manual implementation of custom type. This im-
 /// // plementation is equivalent to what would have
 /// // been derived.
@@ -126,7 +113,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 ///         self.bar.encode(output)?;
 ///         self.baz.encode(output)?;
 ///
-///         Result::Ok(())
+///         Ok(())
 ///     }
 /// }
 /// ```
@@ -138,7 +125,9 @@ pub trait Encode {
 	///
 	/// # Errors
 	///
-	/// If encoding fails, such as if `self` is unencodable, an error is returned.
+	/// If encoding fails, such as if `self` is unencodable, then an error should be returned.
+	///
+	/// <sub>Note that types should usually only define encodable variants, unless its variants are platform-dependent, in which case the largest, portable subset of variants should then be encodable.</sub>
 	///
 	/// # Panics
 	///
@@ -189,7 +178,7 @@ impl<T: Encode, const N: usize> Encode for [T; N] {
 				.map_err(|e| CollectionEncodeError::BadItem(ItemEncodeError { index: i, error: e }))?;
 		}
 
-		Result::Ok(())
+		Ok(())
 	}
 }
 
@@ -210,7 +199,7 @@ impl<T: Encode> Encode for [T] {
 				.map_err(|e| CollectionEncodeError::BadItem(ItemEncodeError { index: i, error: e }))?;
 		}
 
-		Result::Ok(())
+		Ok(())
 	}
 }
 
@@ -256,7 +245,7 @@ impl<T: Encode> Encode for Bound<T> {
 			}
 		}
 
-		Result::Ok(())
+		Ok(())
 	}
 }
 
@@ -291,7 +280,7 @@ impl Encode for char {
 
 #[cfg(feature = "alloc")]
 #[cfg_attr(doc, doc(cfg(feature = "alloc")))]
-impl<T: Encode + ?Sized + ToOwned> Encode for Cow<'_, T> {
+impl<T: Encode + ToOwned + ?Sized> Encode for Cow<'_, T> {
 	type Error = T::Error;
 
 	#[inline(always)]
@@ -331,7 +320,33 @@ impl Encode for Duration {
 		self.as_secs().encode(output)?;
 		self.subsec_nanos().encode(output)?;
 
-		Result::Ok(())
+		Ok(())
+	}
+}
+
+#[cfg(feature = "f128")]
+#[cfg_attr(doc, doc(cfg(feature = "f128")))]
+impl Encode for f128 {
+	type Error = Infallible;
+
+	#[inline]
+	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
+		output.write(&self.to_le_bytes()).unwrap();
+
+		Ok(())
+	}
+}
+
+#[cfg(feature = "f16")]
+#[cfg_attr(doc, doc(cfg(feature = "f16")))]
+impl Encode for f16 {
+	type Error = Infallible;
+
+	#[inline]
+	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
+		output.write(&self.to_le_bytes()).unwrap();
+
+		Ok(())
 	}
 }
 
@@ -340,7 +355,7 @@ impl Encode for Duration {
 impl<K, V, S, E> Encode for HashMap<K, V, S>
 where
 	K: Encode<Error = E>,
-	V: Encode<Error = E>,
+	V: Encode<Error: Into<E>>,
 	S: BuildHasher,
 {
 	type Error = E;
@@ -349,10 +364,13 @@ where
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		for (key, value) in self {
 			key.encode(output)?;
-			value.encode(output)?;
+
+			value
+				.encode(output)
+				.map_err(Into::<E>::into)?;
 		}
 
-		Result::Ok(())
+		Ok(())
 	}
 }
 
@@ -371,7 +389,7 @@ where
 			key.encode(output)?;
 		}
 
-		Result::Ok(())
+		Ok(())
 	}
 }
 
@@ -383,7 +401,7 @@ impl Encode for Infallible {
 	#[inline(always)]
 	fn encode(&self, _output: &mut Output) -> Result<(), Self::Error> {
 		// SAFETY: `Infallible` objects can never be con-
-		// structed
+		// structed.
 		unsafe { unreachable_unchecked() }
 	}
 }
@@ -410,7 +428,7 @@ impl Encode for IpAddr {
 			}
 		}
 
-		Result::Ok(())
+		Ok(())
 	}
 }
 
@@ -446,7 +464,7 @@ impl Encode for isize {
 			.map_err(|_| IsizeEncodeError(*self))?;
 
 		let Ok(_) = value.encode(output);
-		Result::Ok(())
+		Ok(())
 	}
 }
 
@@ -472,8 +490,8 @@ impl<T: Encode> Encode for LazyLock<T> {
 
 #[cfg(feature = "alloc")]
 #[cfg_attr(doc, doc(cfg(feature = "alloc")))]
-impl<T: Encode<Error = E>, E> Encode for LinkedList<T> {
-	type Error = CollectionEncodeError<UsizeEncodeError, (usize, E)>;
+impl<T: Encode> Encode for LinkedList<T> {
+	type Error = CollectionEncodeError<UsizeEncodeError, (usize, T::Error)>;
 
 	#[inline(always)]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
@@ -488,7 +506,7 @@ impl<T: Encode<Error = E>, E> Encode for LinkedList<T> {
 				.map_err(|e| CollectionEncodeError::BadItem((i, e)))?;
 		}
 
-		Result::Ok(())
+		Ok(())
 	}
 }
 
@@ -503,6 +521,20 @@ impl<T: Encode + ?Sized> Encode for Mutex<T> {
 			.lock()
 			.unwrap_or_else(std::sync::PoisonError::into_inner)
 			.encode(output)
+	}
+}
+
+// Especially useful for `Result<T, !>`.
+// **If** that is even needed, of course.
+#[cfg(feature = "never-type")]
+#[cfg_attr(doc, doc(cfg(feature = "never-type")))]
+impl Encode for ! {
+	type Error = Infallible;
+
+	#[inline]
+	fn encode(&self, _output: &mut Output) -> Result<(), Self::Error> {
+		// SAFETY: `!` objects can never be constructed.
+		unsafe { unreachable_unchecked() }
 	}
 }
 
@@ -530,16 +562,16 @@ impl<T: Encode> Encode for Option<T> {
 			}
 		};
 
-		Result::Ok(())
+		Ok(())
 	}
 }
 
-impl<T> Encode for PhantomData<T> {
+impl<T: ?Sized> Encode for PhantomData<T> {
 	type Error = Infallible;
 
 	#[inline(always)]
 	fn encode(&self, _output: &mut Output) -> Result<(), Self::Error> {
-		Result::Ok(())
+		Ok(())
 	}
 }
 
@@ -548,7 +580,7 @@ impl Encode for PhantomPinned {
 
 	#[inline(always)]
 	fn encode(&self, _output: &mut Output) -> Result<(), Self::Error> {
-		Result::Ok(())
+		Ok(())
 	}
 }
 
@@ -560,7 +592,7 @@ impl<T: Encode> Encode for Range<T> {
 		self.start.encode(output)?;
 		self.end.encode(output)?;
 
-		Result::Ok(())
+		Ok(())
 	}
 }
 
@@ -578,7 +610,7 @@ impl Encode for RangeFull {
 
 	#[inline(always)]
 	fn encode(&self, _output: &mut Output) -> Result<(), Self::Error> {
-		Result::Ok(())
+		Ok(())
 	}
 }
 
@@ -590,7 +622,7 @@ impl<T: Encode> Encode for RangeInclusive<T> {
 		self.start().encode(output)?;
 		self.end().encode(output)?;
 
-		Result::Ok(())
+		Ok(())
 	}
 }
 
@@ -635,7 +667,7 @@ impl<T: Encode + ?Sized> Encode for RefCell<T> {
 		T::encode(&value, output)
 			.map_err(RefCellEncodeError::BadValue)?;
 
-		Result::Ok(())
+		Ok(())
 	}
 }
 
@@ -669,7 +701,7 @@ where
 			}
 		};
 
-		Result::Ok(())
+		Ok(())
 	}
 }
 
@@ -717,7 +749,7 @@ impl Encode for SocketAddr {
 			}
 		}
 
-		Result::Ok(())
+		Ok(())
 	}
 }
 
@@ -730,7 +762,7 @@ impl Encode for SocketAddrV4 {
 		self.ip().encode(output)?;
 		self.port().encode(output)?;
 
-		Result::Ok(())
+		Ok(())
 	}
 }
 
@@ -745,7 +777,7 @@ impl Encode for SocketAddrV6 {
 		self.flowinfo().encode(output)?;
 		self.scope_id().encode(output)?;
 
-		Result::Ok(())
+		Ok(())
 	}
 }
 
@@ -804,7 +836,7 @@ impl Encode for SystemTime {
 		};
 
 		time.encode(output)?;
-		Result::Ok(())
+		Ok(())
 	}
 }
 
@@ -813,7 +845,20 @@ impl Encode for () {
 
 	#[inline(always)]
 	fn encode(&self, _output: &mut Output) -> Result<(), Self::Error> {
-		Result::Ok(())
+		Ok(())
+	}
+}
+
+impl<T: Copy + Encode> Encode for UnsafeCell<T> {
+	type Error = T::Error;
+
+	#[inline(always)]
+	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
+		// SAFETY: The pointer returned by `Self::get` is
+		// valid for reading for the lifetime of `self`.
+		let value = unsafe { *self.get() };
+
+		value.encode(output)
 	}
 }
 
@@ -827,7 +872,7 @@ impl Encode for usize {
 			.map_err(|_e| UsizeEncodeError(*self))?;
 
 			let Ok(_) = value.encode(output);
-		Result::Ok(())
+		Ok(())
 	}
 }
 
@@ -857,10 +902,10 @@ macro_rules! impl_numeric {
 			type Error = ::core::convert::Infallible;
 
 			#[inline]
-			fn encode(&self, output: &mut Output) -> ::core::result::Result<(), Self::Error> {
+			fn encode(&self, output: &mut ::oct::encode::Output) -> ::core::result::Result<(), Self::Error> {
 				output.write(&self.to_le_bytes()).unwrap();
 
-				Result::Ok(())
+				Ok(())
 			}
 		}
 	};
@@ -884,7 +929,7 @@ macro_rules! impl_tuple {
 					$captures.encode(output)?;
 				)*
 
-				Result::Ok(())
+				Ok(())
 			}
 		}
 	};

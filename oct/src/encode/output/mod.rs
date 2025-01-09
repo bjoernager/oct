@@ -1,23 +1,10 @@
-// Copyright 2024 Gabriel Bjørnager Jensen.
+// Copyright 2024-2025 Gabriel Bjørnager Jensen.
 //
-// This file is part of Oct.
-//
-// Oct is free software: you can redistribute it
-// and/or modify it under the terms of the GNU
-// Lesser General Public License as published by
-// the Free Software Foundation, either version 3
-// of the License, or (at your option) any later
-// version.
-//
-// Oct is distributed in the hope that it will be
-// useful, but WITHOUT ANY WARRANTY; without even
-// the implied warranty of MERCHANTABILITY or FIT-
-// NESS FOR A PARTICULAR PURPOSE. See the GNU Less-
-// er General Public License for more details.
-//
-// You should have received a copy of the GNU Less-
-// er General Public License along with Oct. If
-// not, see <https://www.gnu.org/licenses/>.
+// This Source Code Form is subject to the terms of
+// the Mozilla Public License, v. 2.0. If a copy of
+// the MPL was not distributed with this file, you
+// can obtain one at:
+// <https://mozilla.org/MPL/2.0/>.
 
 use crate::error::OutputError;
 
@@ -26,7 +13,7 @@ use core::ptr::copy_nonoverlapping;
 use core::slice;
 
 /// Byte stream suitable for writing.
-#[derive(Eq)]
+#[derive(Debug, Eq)]
 pub struct Output<'a> {
 	buf: &'a mut [u8],
 	pos: usize,
@@ -42,9 +29,9 @@ impl<'a> Output<'a> {
 
 	/// Writes bytes to the stream.
 	///
-	/// # Panics
+	/// # Errors
 	///
-	/// If the requested amount of bytes could not exactly be written, then this method will panic.
+	/// If the requested amount of bytes could not be exactly written, then this method will return an error.
 	#[inline]
 	pub const fn write(&mut self, data: &[u8]) -> Result<(), OutputError> {
 		let remaining = self.buf.len() - self.pos;

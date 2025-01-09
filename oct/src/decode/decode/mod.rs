@@ -1,41 +1,25 @@
-// Copyright 2024 Gabriel Bjørnager Jensen.
+// Copyright 2024-2025 Gabriel Bjørnager Jensen.
 //
-// This file is part of Oct.
-//
-// Oct is free software: you can redistribute it
-// and/or modify it under the terms of the GNU
-// Lesser General Public License as published by
-// the Free Software Foundation, either version 3
-// of the License, or (at your option) any later
-// version.
-//
-// Oct is distributed in the hope that it will be
-// useful, but WITHOUT ANY WARRANTY; without even
-// the implied warranty of MERCHANTABILITY or FIT-
-// NESS FOR A PARTICULAR PURPOSE. See the GNU Less-
-// er General Public License for more details.
-//
-// You should have received a copy of the GNU Less-
-// er General Public License along with Oct. If
-// not, see <https://www.gnu.org/licenses/>.
+// This Source Code Form is subject to the terms of
+// the Mozilla Public License, v. 2.0. If a copy of
+// the MPL was not distributed with this file, you
+// can obtain one at:
+// <https://mozilla.org/MPL/2.0/>.
 
 #[cfg(test)]
 mod tests;
 
 use crate::decode::{DecodeBorrowed, Input};
 use crate::error::{
-	CStringDecodeError,
 	CharDecodeError,
 	CollectionDecodeError,
 	EnumDecodeError,
 	ItemDecodeError,
 	SystemTimeDecodeError,
-	Utf8Error,
 };
 
-use core::cell::{Cell, RefCell};
+use core::cell::{Cell, RefCell, UnsafeCell};
 use core::convert::Infallible;
-use core::hash::Hash;
 use core::marker::{PhantomData, PhantomPinned};
 use core::mem::MaybeUninit;
 use core::net::{
@@ -56,8 +40,6 @@ use core::ops::{
 	RangeTo,
 	RangeToInclusive,
 };
-use core::ptr::copy_nonoverlapping;
-use core::str;
 use core::time::Duration;
 
 #[cfg(feature = "alloc")]
@@ -67,28 +49,10 @@ use alloc::borrow::{Cow, ToOwned};
 use alloc::boxed::Box;
 
 #[cfg(feature = "alloc")]
-use alloc::collections::LinkedList;
-
-#[cfg(feature = "alloc")]
-use alloc::ffi::CString;
-
-#[cfg(feature = "alloc")]
-use alloc::string::String;
-
-#[cfg(feature = "alloc")]
-use alloc::vec::Vec;
-
-#[cfg(feature = "alloc")]
 use alloc::rc::Rc;
 
 #[cfg(all(feature = "alloc", target_has_atomic = "ptr"))]
 use alloc::sync::Arc;
-
-#[cfg(feature = "std")]
-use std::collections::{HashMap, HashSet};
-
-#[cfg(feature = "std")]
-use std::hash::BuildHasher;
 
 #[cfg(feature = "std")]
 use std::sync::{Mutex, RwLock};
@@ -108,6 +72,10 @@ pub trait Decode: Sized {
 	/// # Errors
 	///
 	/// If decoding fails due to e.g. an invalid byte sequence in the input, then an error should be returned.
+	///
+	/// # Panics
+	///
+	/// If `input` unexpectedly terminates before a full encoding was read, then this method should panic.
 	fn decode(input: &mut Input) -> Result<Self, Self::Error>;
 }
 
@@ -119,7 +87,7 @@ impl<T: Decode> Decode for (T, ) {
 	#[inline(always)]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let this = (Decode::decode(input)?, );
-		Result::Ok(this)
+		Ok(this)
 	}
 }
 
@@ -145,9 +113,9 @@ impl<T: Decode, const N: usize> Decode for [T; N] {
 		// dropped automatically, so we can just forget
 		// about it from this point on. `transmute` cannot
 		// be used here, and `transmute_unchecked` is re-
-		// served for the greedy rustc devs.
+		// served for the greedy rustc devs. :(
 		let this = unsafe { buf.as_ptr().cast::<[T; N]>().read() };
-		Result::Ok(this)
+		Ok(this)
 	}
 }
 
@@ -161,7 +129,7 @@ impl<T: Decode> Decode for Arc<T> {
 		let value = Decode::decode(input)?;
 
 		let this = Self::new(value);
-		Result::Ok(this)
+		Ok(this)
 	}
 }
 
@@ -176,7 +144,7 @@ impl Decode for bool {
 		let Ok(value) = u8::decode(input);
 
 		let this = value != 0x0;
-		Result::Ok(this)
+		Ok(this)
 	}
 }
 
@@ -207,7 +175,7 @@ impl<T: Decode> Decode for Bound<T> {
 			value => return Err(EnumDecodeError::UnassignedDiscriminant { value }),
 		};
 
-		Result::Ok(this)
+		Ok(this)
 	}
 }
 
@@ -221,7 +189,7 @@ impl<T: Decode> Decode for Box<T> {
 		let value = Decode::decode(input)?;
 
 		let this = Self::new(value);
-		Result::Ok(this)
+		Ok(this)
 	}
 }
 
@@ -233,7 +201,7 @@ impl<T: Decode> Decode for Cell<T> {
 		let value = Decode::decode(input)?;
 
 		let this = Self::new(value);
-		Result::Ok(this)
+		Ok(this)
 	}
 }
 
@@ -247,7 +215,7 @@ impl Decode for char {
 		match code_point {
 			code_point @ (0x0000..=0xD7FF | 0xDE00..=0x10FFFF) => {
 				let this = unsafe { Self::from_u32_unchecked(code_point) };
-				Result::Ok(this)
+				Ok(this)
 			},
 
 			code_point => Err(CharDecodeError { code_point }),
@@ -260,7 +228,7 @@ impl Decode for char {
 impl<T, B> Decode for Cow<'_, B>
 where
 	T: DecodeBorrowed<B>,
-	B: ToOwned<Owned = T>,
+	B: ToOwned<Owned = T> + ?Sized,
 {
 	type Error = T::Error;
 
@@ -269,38 +237,7 @@ where
 		let value = Decode::decode(input)?;
 
 		let this = Self::Owned(value);
-		Result::Ok(this)
-	}
-}
-
-#[cfg(feature = "alloc")]
-#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
-impl Decode for CString {
-	type Error = CStringDecodeError;
-
-	#[inline(always)]
-	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
-		let Ok(len) = Decode::decode(input);
-
-		let data = input.read(len).unwrap();
-
-		for (i, c) in data.iter().enumerate() {
-			if *c == b'\x00' { return Err(CStringDecodeError { index: i }) };
-		}
-
-		let mut buf = Vec::with_capacity(len);
-
-		unsafe {
-			let src = data.as_ptr();
-			let dst = buf.as_mut_ptr();
-
-			copy_nonoverlapping(src, dst, len);
-			buf.set_len(len);
-		}
-
-		// SAFETY: We have already tested the data.
-		let this = unsafe { Self::from_vec_unchecked(buf) };
-		Result::Ok(this)
+		Ok(this)
 	}
 }
 
@@ -313,63 +250,37 @@ impl Decode for Duration {
 		let Ok(nanos) = Decode::decode(input);
 
 		let this = Self::new(secs, nanos);
-		Result::Ok(this)
+		Ok(this)
 	}
 }
 
-#[cfg(feature = "std")]
-#[cfg_attr(doc, doc(cfg(feature = "std")))]
-impl<K, V, S, E> Decode for HashMap<K, V, S>
-where
-	K: Decode<Error = E> + Eq + Hash,
-	V: Decode<Error = E>,
-	S: BuildHasher + Default,
-{
-	type Error = CollectionDecodeError<Infallible, ItemDecodeError<usize, E>>;
+#[cfg(feature = "f128")]
+#[cfg_attr(doc, doc(cfg(feature = "f128")))]
+impl Decode for f128 {
+	type Error = Infallible;
 
 	#[inline]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
-		let Ok(len) = Decode::decode(input);
+		let mut data = [Default::default(); <Self as oct::encode::SizedEncode>::MAX_ENCODED_SIZE];
+		input.read_into(&mut data).unwrap();
 
-		let mut this = Self::with_capacity_and_hasher(len, Default::default());
-
-		for i in 0x0..len {
-			let key= Decode::decode(input)
-				.map_err(|e| CollectionDecodeError::BadItem(ItemDecodeError { index: i, error: e }))?;
-
-			let value = Decode::decode(input)
-				.map_err(|e| CollectionDecodeError::BadItem(ItemDecodeError { index: i, error: e }))?;
-
-			this.insert(key, value);
-		}
-
-		Result::Ok(this)
+		let this = Self::from_le_bytes(data);
+		Ok(this)
 	}
 }
 
-#[cfg(feature = "std")]
-#[cfg_attr(doc, doc(cfg(feature = "std")))]
-impl<K, S> Decode for HashSet<K, S>
-where
-	K: Decode + Eq + Hash,
-	S: BuildHasher + Default,
-{
-	type Error = CollectionDecodeError<Infallible, ItemDecodeError<usize, K::Error>>;
+#[cfg(feature = "f16")]
+#[cfg_attr(doc, doc(cfg(feature = "f16")))]
+impl Decode for f16 {
+	type Error = Infallible;
 
 	#[inline]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
-		let Ok(len) = Decode::decode(input);
+		let mut data = [Default::default(); <Self as oct::encode::SizedEncode>::MAX_ENCODED_SIZE];
+		input.read_into(&mut data).unwrap();
 
-		let mut this = Self::with_capacity_and_hasher(len, Default::default());
-
-		for i in 0x0..len {
-			let key = Decode::decode(input)
-				.map_err(|e| CollectionDecodeError::BadItem(ItemDecodeError { index: i, error: e }) )?;
-
-			this.insert(key);
-		}
-
-		Result::Ok(this)
+		let this = Self::from_le_bytes(data);
+		Ok(this)
 	}
 }
 
@@ -397,7 +308,7 @@ impl Decode for IpAddr {
 			value => return Err(EnumDecodeError::UnassignedDiscriminant { value })
 		};
 
-		Result::Ok(this)
+		Ok(this)
 	}
 }
 
@@ -409,7 +320,7 @@ impl Decode for Ipv4Addr {
 		let Ok(value) = Decode::decode(input);
 
 		let this = Self::from_bits(value);
-		Result::Ok(this)
+		Ok(this)
 	}
 }
 
@@ -421,7 +332,7 @@ impl Decode for Ipv6Addr {
 		let Ok(value) = Decode::decode(input);
 
 		let this = Self::from_bits(value);
-		Result::Ok(this)
+		Ok(this)
 	}
 }
 
@@ -432,29 +343,7 @@ impl Decode for isize {
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let Ok(value) = i16::decode(input);
 
-		Result::Ok(value as Self)
-	}
-}
-
-#[cfg(feature = "alloc")]
-#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
-impl<T: Decode> Decode for LinkedList<T> {
-	type Error = CollectionDecodeError<Infallible, ItemDecodeError<usize, T::Error>>;
-
-	#[inline]
-	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
-		let Ok(len) = usize::decode(input);
-
-		let mut this = Self::new();
-
-		for i in 0x0..len {
-			let value = T::decode(input)
-				.map_err(|e| CollectionDecodeError::BadItem(ItemDecodeError { index: i, error: e }))?;
-
-			this.push_back(value);
-		}
-
-		Result::Ok(this)
+		Ok(value as Self)
 	}
 }
 
@@ -468,7 +357,18 @@ impl<T: Decode> Decode for Mutex<T> {
 		let value = Decode::decode(input)?;
 
 		let this = Self::new(value);
-		Result::Ok(this)
+		Ok(this)
+	}
+}
+
+#[cfg(feature = "never-type")]
+#[cfg_attr(doc, doc(cfg(feature = "never-type")))]
+impl Decode for ! {
+	type Error = Infallible;
+
+	#[inline(always)]
+	fn decode(_input: &mut Input) -> Result<Self, Self::Error> {
+		panic!("cannot deserialise `!` as it cannot be serialised to begin with")
 	}
 }
 
@@ -487,7 +387,7 @@ impl<T: Decode> Decode for Option<T> {
 			None
 		};
 
-		Result::Ok(this)
+		Ok(this)
 	}
 }
 
@@ -496,7 +396,7 @@ impl<T> Decode for PhantomData<T> {
 
 	#[inline(always)]
 	fn decode(_input: &mut Input) -> Result<Self, Self::Error> {
-		Result::Ok(Self)
+		Ok(Self)
 	}
 }
 
@@ -505,7 +405,7 @@ impl Decode for PhantomPinned {
 
 	#[inline(always)]
 	fn decode(_input: &mut Input) -> Result<Self, Self::Error> {
-		Result::Ok(Self)
+		Ok(Self)
 	}
 }
 
@@ -517,7 +417,7 @@ impl<T: Decode> Decode for Range<T> {
 		let start = Decode::decode(input)?;
 		let end   = Decode::decode(input)?;
 
-		Result::Ok(start..end)
+		Ok(start..end)
 	}
 }
 
@@ -528,7 +428,7 @@ impl<T: Decode> Decode for RangeFrom<T> {
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let start = Decode::decode(input)?;
 
-		Result::Ok(start..)
+		Ok(start..)
 	}
 }
 
@@ -537,7 +437,7 @@ impl Decode for RangeFull {
 
 	#[inline(always)]
 	fn decode(_input: &mut Input) -> Result<Self, Self::Error> {
-		Result::Ok(..)
+		Ok(..)
 	}
 }
 
@@ -549,7 +449,7 @@ impl<T: Decode> Decode for RangeInclusive<T> {
 		let start = Decode::decode(input)?;
 		let end   = Decode::decode(input)?;
 
-		Result::Ok(start..=end)
+		Ok(start..=end)
 	}
 }
 
@@ -560,7 +460,7 @@ impl<T: Decode> Decode for RangeTo<T> {
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let end = Decode::decode(input)?;
 
-		Result::Ok(..end)
+		Ok(..end)
 	}
 }
 
@@ -571,7 +471,7 @@ impl<T: Decode> Decode for RangeToInclusive<T> {
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let end = Decode::decode(input)?;
 
-		Result::Ok(..=end)
+		Ok(..=end)
 	}
 }
 
@@ -582,7 +482,7 @@ impl<T: Decode> Decode for Rc<T> {
 
 	#[inline(always)]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
-		Result::Ok(Self::new(Decode::decode(input)?))
+		Ok(Self::new(Decode::decode(input)?))
 	}
 }
 
@@ -594,14 +494,14 @@ impl<T: Decode> Decode for RefCell<T> {
 		let value = Decode::decode(input)?;
 
 		let this = Self::new(value);
-		Result::Ok(this)
+		Ok(this)
 	}
 }
 
 impl<T, E, Err> Decode for Result<T, E>
 where
 	T: Decode<Error = Err>,
-	E: Decode<Error = Err>,
+	E: Decode<Error: Into<Err>>,
 {
 	type Error = EnumDecodeError<bool, Err>;
 
@@ -612,6 +512,7 @@ where
 
 		let this = if sign {
 			let value = Decode::decode(input)
+				.map_err(Into::<Err>::into)
 				.map_err(EnumDecodeError::BadField)?;
 
 			Err(value)
@@ -622,7 +523,7 @@ where
 			Ok(value)
 		};
 
-		Result::Ok(this)
+		Ok(this)
 	}
 }
 
@@ -636,7 +537,7 @@ impl<T: Decode> Decode for RwLock<T> {
 		let value = Decode::decode(input)?;
 
 		let this = Self::new(value);
-		Result::Ok(this)
+		Ok(this)
 	}
 }
 
@@ -648,7 +549,7 @@ impl<T: Decode> Decode for Saturating<T> {
 		let value = Decode::decode(input)?;
 
 		let this = Self(value);
-		Result::Ok(this)
+		Ok(this)
 	}
 }
 
@@ -660,8 +561,8 @@ impl Decode for SocketAddr {
 		let Ok(discriminant) = u8::decode(input);
 
 		match discriminant {
-			0x4 => Result::Ok(Self::V4(Decode::decode(input).unwrap())),
-			0x6 => Result::Ok(Self::V6(Decode::decode(input).unwrap())),
+			0x4 => Ok(Self::V4(Decode::decode(input).unwrap())),
+			0x6 => Ok(Self::V6(Decode::decode(input).unwrap())),
 
 			value => Err(EnumDecodeError::UnassignedDiscriminant { value }),
 		}
@@ -677,7 +578,7 @@ impl Decode for SocketAddrV4 {
 		let port = Decode::decode(input)?;
 
 		let this = Self::new(ip, port);
-		Result::Ok(this)
+		Ok(this)
 	}
 }
 
@@ -692,45 +593,7 @@ impl Decode for SocketAddrV6 {
 		let scope_id  = Decode::decode(input)?;
 
 		let this = Self::new(ip, port, flow_info, scope_id);
-		Result::Ok(this)
-	}
-}
-
-#[cfg(feature = "alloc")]
-#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
-impl Decode for String {
-	type Error = CollectionDecodeError<Infallible, Utf8Error>;
-
-	#[inline(always)]
-	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
-		let Ok(len) = Decode::decode(input);
-
-		let data = input.read(len).unwrap();
-
-		if let Err(e) = str::from_utf8(data) {
-			let i = e.valid_up_to();
-			let c = data[i];
-
-			return Err(
-				CollectionDecodeError::BadItem(
-					Utf8Error { value: c, index: i },
-				),
-			);
-		};
-
-		let mut v = Vec::with_capacity(len);
-
-		unsafe {
-			let src = data.as_ptr();
-			let dst = v.as_mut_ptr();
-
-			copy_nonoverlapping(src, dst, len);
-			v.set_len(len);
-		}
-
-		// SAFETY: We have already tested the raw data.
-		let this = unsafe { Self::from_utf8_unchecked(v) };
-		Result::Ok(this)
+		Ok(this)
 	}
 }
 
@@ -762,7 +625,19 @@ impl Decode for () {
 
 	#[inline(always)]
 	fn decode(_input: &mut Input) -> Result<Self, Self::Error> {
-		Result::Ok(())
+		Ok(())
+	}
+}
+
+impl<T: Decode> Decode for UnsafeCell<T> {
+	type Error = T::Error;
+
+	#[inline(always)]
+	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
+		let value = Decode::decode(input)?;
+
+		let this = Self::new(value);
+		Ok(this)
 	}
 }
 
@@ -772,35 +647,7 @@ impl Decode for usize {
 	#[inline(always)]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let Ok(value) = u16::decode(input);
-		Result::Ok(value as Self)
-	}
-}
-
-#[cfg(feature = "alloc")]
-#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
-impl<T: Decode> Decode for Vec<T> {
-	type Error = CollectionDecodeError<Infallible, ItemDecodeError<usize, T::Error>>;
-
-	#[inline]
-	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
-		let Ok(len) = Decode::decode(input);
-
-		let mut this = Self::with_capacity(len);
-
-		let buf = this.as_mut_ptr();
-		for i in 0x0..len {
-			let value = Decode::decode(input)
-				.map_err(|e| CollectionDecodeError::BadItem(ItemDecodeError { index: i, error: e }))?;
-
-			// SAFETY: Each index is within bounds (i.e. capac-
-			// ity).
-			unsafe { buf.add(i).write(value) };
-		}
-
-		// SAFETY: We have initialised the buffer.
-		unsafe { this.set_len(len); }
-
-		Result::Ok(this)
+		Ok(value as Self)
 	}
 }
 
@@ -812,7 +659,7 @@ impl<T: Decode> Decode for Wrapping<T> {
 		let value = Decode::decode(input)?;
 
 		let this = Self(value);
-		Result::Ok(this)
+		Ok(this)
 	}
 }
 
@@ -835,19 +682,25 @@ macro_rules! impl_numeric {
 
 macro_rules! impl_tuple {
 	{
-		$($tys:ident),+$(,)?
+		$ty:ident,
+		$($extra_tys:ident),*$(,)?
 	} => {
 		#[doc(hidden)]
-		impl<$($tys, )* E> ::oct::decode::Decode for ($($tys, )*)
+		impl<$ty, $($extra_tys, )* E> ::oct::decode::Decode for ($ty, $($extra_tys, )*)
 		where
-			$($tys: Decode<Error = E>, )*
+			$ty: Decode<Error = E>,
+			$($extra_tys: Decode<Error: Into<E>>, )*
 		{
 			type Error = E;
 
 			#[inline(always)]
 			fn decode(input: &mut ::oct::decode::Input) -> ::core::result::Result<Self, Self::Error> {
 				let this = (
-					$( <$tys as ::oct::decode::Decode>::decode(input)?, )*
+					<T0 as ::oct::decode::Decode>::decode(input)?,
+					$(
+						<$extra_tys as ::oct::decode::Decode>::decode(input)
+							.map_err(::core::convert::Into::<E>::into)?,
+					)*
 				);
 
 				::core::result::Result::Ok(this)
@@ -863,16 +716,16 @@ macro_rules! impl_non_zero {
 
 			#[inline]
 			fn decode(input: &mut ::oct::decode::Input) -> ::core::result::Result<Self, Self::Error> {
-				use ::core::result::Result;
+				use ::core::result::Result::{Err, Ok};
 
-				let Result::Ok(value) = <$ty as ::oct::decode::Decode>::decode(input);
+				let Ok(value) = <$ty as ::oct::decode::Decode>::decode(input);
 
 				match value {
-					0x0 => Result::Err(::oct::error::NonZeroDecodeError),
+					0x0 => Err(::oct::error::NonZeroDecodeError),
 
 					value => {
 						let this = unsafe { ::core::num::NonZero::new_unchecked(value) };
-						Result::Ok(this)
+						Ok(this)
 					},
 				}
 			}

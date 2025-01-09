@@ -1,29 +1,16 @@
-// Copyright 2024 Gabriel Bjørnager Jensen.
+// Copyright 2024-2025 Gabriel Bjørnager Jensen.
 //
-// This file is part of Oct.
-//
-// Oct is free software: you can redistribute it
-// and/or modify it under the terms of the GNU
-// Lesser General Public License as published by
-// the Free Software Foundation, either version 3
-// of the License, or (at your option) any later
-// version.
-//
-// Oct is distributed in the hope that it will be
-// useful, but WITHOUT ANY WARRANTY; without even
-// the implied warranty of MERCHANTABILITY or FIT-
-// NESS FOR A PARTICULAR PURPOSE. See the GNU Less-
-// er General Public License for more details.
-//
-// You should have received a copy of the GNU Less-
-// er General Public License along with Oct. If
-// not, see <https://www.gnu.org/licenses/>.
+// This Source Code Form is subject to the terms of
+// the Mozilla Public License, v. 2.0. If a copy of
+// the MPL was not distributed with this file, you
+// can obtain one at:
+// <https://mozilla.org/MPL/2.0/>.
 
-use crate::SizedSlice;
+use crate::vec::Vec;
 use crate::error::LengthError;
 
 use core::borrow::{Borrow, BorrowMut};
-use core::mem::MaybeUninit;
+use core::mem::{ManuallyDrop, MaybeUninit};
 use core::ops::{Deref, DerefMut};
 use core::ptr::copy_nonoverlapping;
 use core::slice;
@@ -34,10 +21,7 @@ use alloc::alloc::{alloc, Layout};
 #[cfg(feature = "alloc")]
 use alloc::boxed::Box;
 
-#[cfg(feature = "alloc")]
-use alloc::vec::Vec;
-
-impl<T, const N: usize> SizedSlice<T, N> {
+impl<T, const N: usize> Vec<T, N> {
 	/// Constructs a fixed-size vector from raw parts.
 	///
 	/// The provided parts are not tested in any way.
@@ -102,12 +86,23 @@ impl<T, const N: usize> SizedSlice<T, N> {
 
 	/// Destructs the vector into its raw parts.
 	///
-	/// The returned values are valid to pass on to [`from_raw_parts`](Self::from_raw_parts).
+	/// The returned parts are valid to pass back to [`from_raw_parts`](Self::from_raw_parts).
 	#[inline(always)]
 	#[must_use]
 	pub const fn into_raw_parts(self) -> ([MaybeUninit<T>; N], usize) {
-		let Self { buf, len } = self;
-		(buf, len)
+		let this = ManuallyDrop::new(self);
+
+		unsafe {
+			// SAFETY: `ManuallyDrop<T>` is transparent to `T`.
+			// We also aren't dropping `this`, so we can safely
+			// move out of it.
+			let this = &*(&raw const this).cast::<Self>();
+
+			let buf = (&raw const this.buf).read();
+			let len = this.len;
+
+			(buf, len)
+		}
 	}
 
 	/// Converts the vector into a boxed slice.
@@ -135,47 +130,47 @@ impl<T, const N: usize> SizedSlice<T, N> {
 		}
 	}
 
-	/// Converts the vector into a dynamic vector.
+	/// Converts the vector into a dynamically-allocated vector.
 	///
 	/// The vector is reallocated using the global allocator.
 	#[cfg(feature = "alloc")]
 	#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
 	#[inline(always)]
 	#[must_use]
-	pub fn into_vec(self) -> Vec<T> {
+	pub fn into_alloc_vec(self) -> alloc::vec::Vec<T> {
 		self.into_boxed_slice().into_vec()
 	}
 }
 
-impl<T, const N: usize> AsMut<[T]> for SizedSlice<T, N> {
+impl<T, const N: usize> AsMut<[T]> for Vec<T, N> {
 	#[inline(always)]
 	fn as_mut(&mut self) -> &mut [T] {
 		self.as_mut_slice()
 	}
 }
 
-impl<T, const N: usize> AsRef<[T]> for SizedSlice<T, N> {
+impl<T, const N: usize> AsRef<[T]> for Vec<T, N> {
 	#[inline(always)]
 	fn as_ref(&self) -> &[T] {
 		self.as_slice()
 	}
 }
 
-impl<T, const N: usize> Borrow<[T]> for SizedSlice<T, N> {
+impl<T, const N: usize> Borrow<[T]> for Vec<T, N> {
 	#[inline(always)]
 	fn borrow(&self) -> &[T] {
 		self.as_slice()
 	}
 }
 
-impl<T, const N: usize> BorrowMut<[T]> for SizedSlice<T, N> {
+impl<T, const N: usize> BorrowMut<[T]> for Vec<T, N> {
 	#[inline(always)]
 	fn borrow_mut(&mut self) -> &mut [T] {
 		self.as_mut_slice()
 	}
 }
 
-impl<T, const N: usize> Deref for SizedSlice<T, N> {
+impl<T, const N: usize> Deref for Vec<T, N> {
 	type Target = [T];
 
 	#[inline(always)]
@@ -184,14 +179,14 @@ impl<T, const N: usize> Deref for SizedSlice<T, N> {
 	}
 }
 
-impl<T, const N: usize> DerefMut for SizedSlice<T, N> {
+impl<T, const N: usize> DerefMut for Vec<T, N> {
 	#[inline(always)]
 	fn deref_mut(&mut self) -> &mut Self::Target {
 		self.as_mut_slice()
 	}
 }
 
-impl<T, const N: usize> From<[T; N]> for SizedSlice<T, N> {
+impl<T, const N: usize> From<[T; N]> for Vec<T, N> {
 	#[inline(always)]
 	fn from(value: [T; N]) -> Self {
 		unsafe {
@@ -202,7 +197,7 @@ impl<T, const N: usize> From<[T; N]> for SizedSlice<T, N> {
 	}
 }
 
-impl<T: Clone, const N: usize> TryFrom<&[T]> for SizedSlice<T, N> {
+impl<T: Copy, const N: usize> TryFrom<&[T]> for Vec<T, N> {
 	type Error = LengthError;
 
 	#[inline(always)]
@@ -213,18 +208,18 @@ impl<T: Clone, const N: usize> TryFrom<&[T]> for SizedSlice<T, N> {
 
 #[cfg(feature = "alloc")]
 #[cfg_attr(doc, doc(cfg(feature = "alloc")))]
-impl<T, const N: usize> From<SizedSlice<T, N>> for Box<[T]> {
+impl<T, const N: usize> From<Vec<T, N>> for Box<[T]> {
 	#[inline(always)]
-	fn from(value: SizedSlice<T, N>) -> Self {
+	fn from(value: Vec<T, N>) -> Self {
 		value.into_boxed_slice()
 	}
 }
 
 #[cfg(feature = "alloc")]
 #[cfg_attr(doc, doc(cfg(feature = "alloc")))]
-impl<T, const N: usize> From<SizedSlice<T, N>> for Vec<T> {
+impl<T, const N: usize> From<Vec<T, N>> for alloc::vec::Vec<T> {
 	#[inline(always)]
-	fn from(value: SizedSlice<T, N>) -> Self {
-		value.into_vec()
+	fn from(value: Vec<T, N>) -> Self {
+		value.into_alloc_vec()
 	}
 }

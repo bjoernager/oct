@@ -1,25 +1,52 @@
-// Copyright 2024 Gabriel Bjørnager Jensen.
+// Copyright 2024-2025 Gabriel Bjørnager Jensen.
 //
-// This file is part of Oct.
-//
-// Oct is free software: you can redistribute it
-// and/or modify it under the terms of the GNU
-// Lesser General Public License as published by
-// the Free Software Foundation, either version 3
-// of the License, or (at your option) any later
-// version.
-//
-// Oct is distributed in the hope that it will be
-// useful, but WITHOUT ANY WARRANTY; without even
-// the implied warranty of MERCHANTABILITY or FIT-
-// NESS FOR A PARTICULAR PURPOSE. See the GNU Less-
-// er General Public License for more details.
-//
-// You should have received a copy of the GNU Less-
-// er General Public License along with Oct. If
-// not, see <https://www.gnu.org/licenses/>.
+// This Source Code Form is subject to the terms of
+// the Mozilla Public License, v. 2.0. If a copy of
+// the MPL was not distributed with this file, you
+// can obtain one at:
+// <https://mozilla.org/MPL/2.0/>.
 
 //! Encoding-related facilities.
+//!
+//! To encode an object directly using the [`Encode`] trait, simply allocate a buffer for the encoding and wrap it in an [`Output`] object:
+//!
+//! ```rust
+//! use oct::encode::{Encode, Output, SizedEncode};
+//!
+//! let mut buf = [0x00; char::MAX_ENCODED_SIZE];
+//! let mut stream = Output::new(&mut buf);
+//!
+//! 'Ж'.encode(&mut stream).unwrap();
+//!
+//! assert_eq!(buf, [0x16, 0x04, 0x00, 0x00].as_slice());
+//! ```
+//!
+//! The `Output` type can also be used to chain multiple objects together:
+//!
+//! ```rust
+//! use oct::encode::{Encode, Output, SizedEncode};
+//!
+//! let mut buf = [0x0; char::MAX_ENCODED_SIZE * 0x5];
+//! let mut stream = Output::new(&mut buf);
+//!
+//! // Note: For serialising multiple characters, the
+//! // `alloc::string::String` and `oct::str::
+//! // String` types are usually preferred.
+//!
+//! 'ل'.encode(&mut stream).unwrap();
+//! 'ا'.encode(&mut stream).unwrap();
+//! 'م'.encode(&mut stream).unwrap();
+//! 'د'.encode(&mut stream).unwrap();
+//! 'ا'.encode(&mut stream).unwrap();
+//!
+//! assert_eq!(buf, [
+//!     0x44, 0x06, 0x00, 0x00, 0x27, 0x06, 0x00, 0x00,
+//!     0x45, 0x06, 0x00, 0x00, 0x2F, 0x06, 0x00, 0x00,
+//!     0x27, 0x06, 0x00, 0x00,
+//! ]);
+//! ```
+//!
+//! If the encoded type additionally implements [`SizedEncode`], then the maximum size of any encoding is guaranteed with the [`MAX_ENCODED_SIZE`](SizedEncode::MAX_ENCODED_SIZE) constant.
 
 use crate::use_mod;
 
@@ -44,7 +71,7 @@ use_mod!(pub sized_encode);
 ///
 /// For example, the following struct will encode its field `foo` followed by `bar`:
 ///
-/// ```
+/// ```rust
 /// use oct::encode::Encode;
 ///
 /// #[derive(Encode)]
@@ -66,9 +93,9 @@ use_mod!(pub sized_encode);
 /// A custom discriminant may be set instead by assigning the variant an integer constant.
 /// Unspecified discriminants then increment the previous variant's discriminant:
 ///
-/// ```
-/// use oct::Slot;
+/// ```rust
 /// use oct::encode::Encode;
+/// use oct::slot::Slot;
 ///
 /// #[derive(Encode)]
 /// enum Num {

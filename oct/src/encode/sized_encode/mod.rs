@@ -1,32 +1,19 @@
-// Copyright 2024 Gabriel Bjørnager Jensen.
+// Copyright 2024-2025 Gabriel Bjørnager Jensen.
 //
-// This file is part of Oct.
-//
-// Oct is free software: you can redistribute it
-// and/or modify it under the terms of the GNU
-// Lesser General Public License as published by
-// the Free Software Foundation, either version 3
-// of the License, or (at your option) any later
-// version.
-//
-// Oct is distributed in the hope that it will be
-// useful, but WITHOUT ANY WARRANTY; without even
-// the implied warranty of MERCHANTABILITY or FIT-
-// NESS FOR A PARTICULAR PURPOSE. See the GNU Less-
-// er General Public License for more details.
-//
-// You should have received a copy of the GNU Less-
-// er General Public License along with Oct. If
-// not, see <https://www.gnu.org/licenses/>.
+// This Source Code Form is subject to the terms of
+// the Mozilla Public License, v. 2.0. If a copy of
+// the MPL was not distributed with this file, you
+// can obtain one at:
+// <https://mozilla.org/MPL/2.0/>.
 
 #[cfg(test)]
 mod tests;
 
 use crate::encode::Encode;
 
-use core::cell::{Cell, LazyCell, RefCell};
+use core::cell::{Cell, LazyCell, RefCell, UnsafeCell};
 use core::convert::Infallible;
-use core::marker::PhantomData;
+use core::marker::{PhantomData, PhantomPinned};
 use core::net::{
 	IpAddr,
 	Ipv4Addr,
@@ -74,19 +61,19 @@ use std::time::SystemTime;
 /// The general rule is that the size limit must be a substantial part of a type's design to constitute implementing this trait.
 ///
 /// Also note that -- in practice -- this trait is **not** strictly enforceable.
-/// Users of the `Encode` and [`Decode`](crate::decode::Decode) traits should assume that this trait is mostly properly defined, but should also still leave room for the possibility that it isn't.
-pub trait SizedEncode: Encode + Sized {
-	/// The maximum guaranteed amount of bytes that can result from an encoding.
+/// Users of this trait should assume that it is mostly properly defined, but still with the possibility of it not being such.
+pub trait SizedEncode: Encode {
+	/// The maximum, guaranteed amount of bytes that can result from an encoding.
 	///
 	/// Implementors of this trait should make sure that no encoding (or decoding) consumes more than the amount specified by this constant.
 	const MAX_ENCODED_SIZE: usize;
 }
 
-impl<T: SizedEncode> SizedEncode for &T {
+impl<T: SizedEncode + ?Sized> SizedEncode for &T {
 	const MAX_ENCODED_SIZE: usize = T::MAX_ENCODED_SIZE;
 }
 
-impl<T: SizedEncode> SizedEncode for &mut T {
+impl<T: SizedEncode + ?Sized> SizedEncode for &mut T {
 	const MAX_ENCODED_SIZE: usize = T::MAX_ENCODED_SIZE;
 }
 
@@ -103,7 +90,7 @@ impl<T: SizedEncode, const N: usize> SizedEncode for [T; N] {
 
 #[cfg(all(feature = "alloc", target_has_atomic = "ptr"))]
 #[cfg_attr(doc, doc(cfg(all(feature = "alloc", target_has_atomic = "ptr"))))]
-impl<T: SizedEncode> SizedEncode for Arc<T> {
+impl<T: SizedEncode + ?Sized> SizedEncode for Arc<T> {
 	const MAX_ENCODED_SIZE: usize = T::MAX_ENCODED_SIZE;
 }
 
@@ -119,7 +106,7 @@ impl<T: SizedEncode> SizedEncode for Bound<T> {
 
 #[cfg(feature = "alloc")]
 #[cfg_attr(doc, doc(cfg(feature = "alloc")))]
-impl<T: SizedEncode> SizedEncode for Box<T> {
+impl<T: SizedEncode + ?Sized> SizedEncode for Box<T> {
 	const MAX_ENCODED_SIZE: usize = T::MAX_ENCODED_SIZE;
 }
 
@@ -133,7 +120,7 @@ impl SizedEncode for char {
 
 #[cfg(feature = "alloc")]
 #[cfg_attr(doc, doc(cfg(feature = "alloc")))]
-impl<T: SizedEncode + ToOwned> SizedEncode for Cow<'_, T> {
+impl<T: SizedEncode + ?Sized + ToOwned> SizedEncode for Cow<'_, T> {
 	const MAX_ENCODED_SIZE: usize = T::MAX_ENCODED_SIZE;
 }
 
@@ -141,6 +128,18 @@ impl SizedEncode for Duration {
 	const MAX_ENCODED_SIZE: usize =
 		u64::MAX_ENCODED_SIZE
 		+ u32::MAX_ENCODED_SIZE;
+}
+
+#[cfg(feature = "f16")]
+#[cfg_attr(doc, doc(cfg(feature = "f16")))]
+impl SizedEncode for f16 {
+	const MAX_ENCODED_SIZE: usize = size_of::<Self>();
+}
+
+#[cfg(feature = "f128")]
+#[cfg_attr(doc, doc(cfg(feature = "f128")))]
+impl SizedEncode for f128 {
+	const MAX_ENCODED_SIZE: usize = size_of::<Self>();
 }
 
 impl SizedEncode for Infallible {
@@ -177,8 +176,14 @@ impl<T: SizedEncode> SizedEncode for LazyLock<T> {
 
 #[cfg(feature = "std")]
 #[cfg_attr(doc, doc(cfg(feature = "std")))]
-impl<T: SizedEncode> SizedEncode for Mutex<T> {
+impl<T: SizedEncode + ?Sized> SizedEncode for Mutex<T> {
 	const MAX_ENCODED_SIZE: usize = T::MAX_ENCODED_SIZE;
+}
+
+#[cfg(feature = "never-type")]
+#[cfg_attr(doc, doc(cfg(feature = "never-type")))]
+impl SizedEncode for ! {
+	const MAX_ENCODED_SIZE: usize = 0x0;
 }
 
 impl<T: SizedEncode> SizedEncode for Option<T> {
@@ -187,7 +192,11 @@ impl<T: SizedEncode> SizedEncode for Option<T> {
 		+ T::MAX_ENCODED_SIZE;
 }
 
-impl<T> SizedEncode for PhantomData<T> {
+impl<T: ?Sized> SizedEncode for PhantomData<T> {
+	const MAX_ENCODED_SIZE: usize = 0x0;
+}
+
+impl SizedEncode for PhantomPinned {
 	const MAX_ENCODED_SIZE: usize = 0x0;
 }
 
@@ -217,18 +226,18 @@ impl<T: SizedEncode> SizedEncode for RangeToInclusive<T> {
 
 #[cfg(feature = "alloc")]
 #[cfg_attr(doc, doc(cfg(feature = "alloc")))]
-impl<T: SizedEncode> SizedEncode for Rc<T> {
+impl<T: SizedEncode + ?Sized> SizedEncode for Rc<T> {
 	const MAX_ENCODED_SIZE: usize = T::MAX_ENCODED_SIZE;
 }
 
-impl<T: SizedEncode> SizedEncode for RefCell<T> {
+impl<T: SizedEncode + ?Sized> SizedEncode for RefCell<T> {
 	const MAX_ENCODED_SIZE: usize = T::MAX_ENCODED_SIZE;
 }
 
 impl<T, E, Err> SizedEncode for core::result::Result<T, E>
 where
 	T: SizedEncode + Encode<Error = Err>,
-	E: SizedEncode + Encode<Error = Err>,
+	E: SizedEncode + Encode<Error: Into<Err>>,
 {
 	const MAX_ENCODED_SIZE: usize =
 		bool::MAX_ENCODED_SIZE
@@ -237,7 +246,7 @@ where
 
 #[cfg(feature = "std")]
 #[cfg_attr(doc, doc(cfg(feature = "std")))]
-impl<T: SizedEncode> SizedEncode for RwLock<T> {
+impl<T: SizedEncode + ?Sized> SizedEncode for RwLock<T> {
 	const MAX_ENCODED_SIZE: usize = T::MAX_ENCODED_SIZE;
 }
 
@@ -257,7 +266,6 @@ impl SizedEncode for SocketAddrV4 {
 		+ u16::MAX_ENCODED_SIZE;
 }
 
-/// This implementation encodes the address's bits followed by the port number, all of which in big-endian.
 impl SizedEncode for SocketAddrV6 {
 	const MAX_ENCODED_SIZE: usize =
 		Ipv6Addr::MAX_ENCODED_SIZE
@@ -276,6 +284,10 @@ impl SizedEncode for () {
 	const MAX_ENCODED_SIZE: usize = 0x0;
 }
 
+impl<T: Copy + SizedEncode> SizedEncode for UnsafeCell<T> {
+	const MAX_ENCODED_SIZE: usize = T::MAX_ENCODED_SIZE;
+}
+
 impl SizedEncode for usize {
 	const MAX_ENCODED_SIZE: Self = u16::MAX_ENCODED_SIZE;
 }
@@ -287,7 +299,7 @@ impl<T: SizedEncode> SizedEncode for Wrapping<T> {
 macro_rules! impl_numeric {
 	($ty:ty$(,)?) => {
 		impl ::oct::encode::SizedEncode for $ty {
-			const MAX_ENCODED_SIZE: usize = ::core::mem::size_of::<$ty>();
+			const MAX_ENCODED_SIZE: usize = ::core::mem::size_of::<Self>();
 		}
 	};
 }

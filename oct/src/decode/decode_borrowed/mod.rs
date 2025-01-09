@@ -1,45 +1,20 @@
-// Copyright 2024 Gabriel Bjørnager Jensen.
+// Copyright 2024-2025 Gabriel Bjørnager Jensen.
 //
-// This file is part of Oct.
-//
-// Oct is free software: you can redistribute it
-// and/or modify it under the terms of the GNU
-// Lesser General Public License as published by
-// the Free Software Foundation, either version 3
-// of the License, or (at your option) any later
-// version.
-//
-// Oct is distributed in the hope that it will be
-// useful, but WITHOUT ANY WARRANTY; without even
-// the implied warranty of MERCHANTABILITY or FIT-
-// NESS FOR A PARTICULAR PURPOSE. See the GNU Less-
-// er General Public License for more details.
-//
-// You should have received a copy of the GNU Less-
-// er General Public License along with Oct. If
-// not, see <https://www.gnu.org/licenses/>.
+// This Source Code Form is subject to the terms of
+// the Mozilla Public License, v. 2.0. If a copy of
+// the MPL was not distributed with this file, you
+// can obtain one at:
+// <https://mozilla.org/MPL/2.0/>.
 
 use crate::decode::Decode;
 
 use core::borrow::Borrow;
 
 #[cfg(feature = "alloc")]
-use core::ffi::CStr;
-
-#[cfg(feature = "alloc")]
 use alloc::boxed::Box;
 
 #[cfg(feature = "alloc")]
-use alloc::ffi::CString;
-
-#[cfg(feature = "alloc")]
 use alloc::rc::Rc;
-
-#[cfg(feature = "alloc")]
-use alloc::vec::Vec;
-
-#[cfg(feature = "alloc")]
-use alloc::string::String;
 
 #[cfg(all(feature = "alloc", target_has_atomic = "ptr"))]
 use alloc::sync::Arc;
@@ -57,7 +32,7 @@ use alloc::sync::Arc;
 ///
 /// [\[T\]]: slice
 ///
-/// An alternative to using arrays would be to use [`SizedSlice`](crate::SizedSlice), which *do* encode its length.
+/// An alternative to using arrays would be to use the [`Vec`](crate::vec::Vec) type, which *does* use the same scheme.
 pub trait DecodeBorrowed<B: ?Sized>: Borrow<B> + Decode { }
 
 impl<T: Decode> DecodeBorrowed<T> for T { }
@@ -72,16 +47,4 @@ impl<T: Decode> DecodeBorrowed<T> for Box<T> { }
 
 #[cfg(feature = "alloc")]
 #[cfg_attr(doc, doc(cfg(feature = "alloc")))]
-impl DecodeBorrowed<CStr> for CString { }
-
-#[cfg(feature = "alloc")]
-#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
 impl<T: Decode> DecodeBorrowed<T> for Rc<T> { }
-
-#[cfg(feature = "alloc")]
-#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
-impl DecodeBorrowed<str> for String { }
-
-#[cfg(feature = "alloc")]
-#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
-impl<T: Decode> DecodeBorrowed<[T]> for Vec<T> { }

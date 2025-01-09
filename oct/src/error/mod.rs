@@ -1,27 +1,14 @@
-// Copyright 2024 Gabriel Bjørnager Jensen.
+// Copyright 2024-2025 Gabriel Bjørnager Jensen.
 //
-// This file is part of Oct.
-//
-// Oct is free software: you can redistribute it
-// and/or modify it under the terms of the GNU
-// Lesser General Public License as published by
-// the Free Software Foundation, either version 3
-// of the License, or (at your option) any later
-// version.
-//
-// Oct is distributed in the hope that it will be
-// useful, but WITHOUT ANY WARRANTY; without even
-// the implied warranty of MERCHANTABILITY or FIT-
-// NESS FOR A PARTICULAR PURPOSE. See the GNU Less-
-// er General Public License for more details.
-//
-// You should have received a copy of the GNU Less-
-// er General Public License along with Oct. If
-// not, see <https://www.gnu.org/licenses/>.
+// This Source Code Form is subject to the terms of
+// the Mozilla Public License, v. 2.0. If a copy of
+// the MPL was not distributed with this file, you
+// can obtain one at:
+// <https://mozilla.org/MPL/2.0/>.
 
 //! Error variants.
 //!
-//! This module defines the error types used by oct.
+//! This module defines the error types used by Oct.
 //! All of these types define (at least conditionally) the [`Error`](core::error::Error) trait.
 
 use crate::use_mod;
@@ -43,11 +30,7 @@ use_mod!(pub output_error);
 use_mod!(pub ref_cell_encode_error);
 use_mod!(pub string_error);
 use_mod!(pub usize_encode_error);
-use_mod!(pub utf16_error);
 use_mod!(pub utf8_error);
-
-#[cfg(feature = "alloc")]
-use_mod!(pub c_string_decode_error);
 
 #[cfg(feature = "std")]
 use_mod!(pub system_time_decode_error);

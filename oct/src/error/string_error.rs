@@ -1,37 +1,21 @@
-// Copyright 2024 Gabriel Bjørnager Jensen.
+// Copyright 2024-2025 Gabriel Bjørnager Jensen.
 //
-// This file is part of Oct.
-//
-// Oct is free software: you can redistribute it
-// and/or modify it under the terms of the GNU
-// Lesser General Public License as published by
-// the Free Software Foundation, either version 3
-// of the License, or (at your option) any later
-// version.
-//
-// Oct is distributed in the hope that it will be
-// useful, but WITHOUT ANY WARRANTY; without even
-// the implied warranty of MERCHANTABILITY or FIT-
-// NESS FOR A PARTICULAR PURPOSE. See the GNU Less-
-// er General Public License for more details.
-//
-// You should have received a copy of the GNU Less-
-// er General Public License along with Oct. If
-// not, see <https://www.gnu.org/licenses/>.
+// This Source Code Form is subject to the terms of
+// the Mozilla Public License, v. 2.0. If a copy of
+// the MPL was not distributed with this file, you
+// can obtain one at:
+// <https://mozilla.org/MPL/2.0/>.
 
-use crate::error::{LengthError, Utf16Error, Utf8Error};
+use crate::error::{LengthError, Utf8Error};
 
 use core::error::Error;
 use core::fmt::{self, Display, Formatter};
 
 /// String error variants.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 #[non_exhaustive]
 #[must_use]
 pub enum StringError {
-	/// An invalid UTF-16 sequence was encountered.
-	BadUtf16(Utf16Error),
-
 	/// An invalid UTF-8 sequence was encountered.
 	BadUtf8(Utf8Error),
 
@@ -43,9 +27,6 @@ impl Display for StringError {
 	#[inline]
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		match *self {
-			Self::BadUtf16(ref e)
-			=> write!(f, "bad utf-16: {e}"),
-
 			Self::BadUtf8(ref e)
 			=> write!(f, "bad utf-8: {e}"),
 
@@ -59,8 +40,6 @@ impl Error for StringError {
 	#[inline]
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match *self {
-			Self::BadUtf16(ref e) => Some(e),
-
 			Self::BadUtf8(ref e) => Some(e),
 
 			Self::SmallBuffer(ref e) => Some(e),

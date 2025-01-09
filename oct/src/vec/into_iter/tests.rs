@@ -1,29 +1,18 @@
-// Copyright 2024 Gabriel Bjørnager Jensen.
+// Copyright 2024-2025 Gabriel Bjørnager Jensen.
 //
-// This file is part of Oct.
-//
-// Oct is free software: you can redistribute it
-// and/or modify it under the terms of the GNU
-// Lesser General Public License as published by
-// the Free Software Foundation, either version 3
-// of the License, or (at your option) any later
-// version.
-//
-// Oct is distributed in the hope that it will be
-// useful, but WITHOUT ANY WARRANTY; without even
-// the implied warranty of MERCHANTABILITY or FIT-
-// NESS FOR A PARTICULAR PURPOSE. See the GNU Less-
-// er General Public License for more details.
-//
-// You should have received a copy of the GNU Less-
-// er General Public License along with Oct. If
-// not, see <https://www.gnu.org/licenses/>.
+// This Source Code Form is subject to the terms of
+// the Mozilla Public License, v. 2.0. If a copy of
+// the MPL was not distributed with this file, you
+// can obtain one at:
+// <https://mozilla.org/MPL/2.0/>.
 
-use oct::{SizedSlice, SizedStr};
+use oct::string::String;
+use oct::vec::Vec;
+use std::str::FromStr;
 
 #[test]
-fn test_sized_iter_clone() {
-	let data = SizedStr::<0x9>::new("fran\u{00E7}ais").unwrap();
+fn test_vec_iter_clone() {
+	let data = String::<0x9>::from_str("fran\u{00E7}ais").unwrap();
 
 	let mut data0 = data.into_bytes().into_iter();
 
@@ -46,8 +35,8 @@ fn test_sized_iter_clone() {
 }
 
 #[test]
-fn test_sized_iter_double_ended() {
-	let data = SizedSlice::from([
+fn test_vec_iter_double_ended() {
+	let data = Vec::from([
 		'H', 'E', 'L', 'L', 'O', ' ', 'W', 'O',
 		'R', 'L', 'D',
 	]);
