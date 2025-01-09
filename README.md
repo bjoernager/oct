@@ -119,6 +119,7 @@ use std::thread::spawn;
 
 // City, region, etc.:
 #[derive(Clone, Copy, Debug, Decode, Encode, Eq, PartialEq, SizedEncode)]
+#[non_exhaustive]
 enum Area {
     AlQuds,
     Byzantion,
@@ -129,6 +130,7 @@ enum Area {
 
 // Client-to-server message:
 #[derive(Debug, Decode, Encode, PartialEq, SizedEncode)]
+#[non_exhaustive]
 enum Request {
     AtmosphericHumidity { area: Area },
     AtmosphericPressure { area: Area },
@@ -138,6 +140,7 @@ enum Request {
 
 // Server-to-client message:
 #[derive(Debug, Decode, Encode, PartialEq, SizedEncode)]
+#[non_exhaustive]
 enum Response {
     AtmosphericHumidity(f64),
     AtmosphericPressure(f64), // Pascal

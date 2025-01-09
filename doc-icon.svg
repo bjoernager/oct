@@ -6,28 +6,28 @@
 	cence.
 -->
 
-<svg height="112" width="112" xmlns="http://www.w3.org/2000/svg">
+<svg height="144" width="144" xmlns="http://www.w3.org/2000/svg">
 	<mask id="tHorizontalArm">
 		<rect fill="white" height="100%" width="100%" x="0" y="0" />
-		<circle cx="56" cy="56" fill="none" r="32" stroke="black" stroke-width="24" />
+		<circle cx="72" cy="72" fill="none" r="32" stroke="black" stroke-width="24" />
 	</mask>
 
 	<mask id="border">
 		<!-- O: -->
-		<circle cx="56" cy="56" fill="none" r="32" stroke="white" stroke-width="24" />
+		<circle cx="72" cy="72" fill="none" r="32" stroke="white" stroke-width="24" />
 
 		<!-- T: -->
-		<rect fill="white" height="16" stroke="white" stroke-width="8" width="96" x="8" y="48" />
-		<rect fill="white" height="96" stroke="white" stroke-width="8" width="16" x="48" y="8" />
+		<rect fill="white" height="16" stroke="white" stroke-width="8" width="112" x="16" y="64" />
+		<rect fill="white" height="112" stroke="white" stroke-width="8" width="16" x="64" y="16" />
 	</mask>
 
 	<mask id="glyph">
 		<!-- O: -->
-		<circle cx="56" cy="56" fill="none" r="32" stroke="white" stroke-width="16" />
+		<circle cx="72" cy="72" fill="none" r="32" stroke="white" stroke-width="16" />
 
 		<!-- T: -->
-		<rect fill="white" height="16" paint-order="stroke" stroke="black" stroke-width="8" width="96" x="8" y="48" />
-		<rect fill="white" height="96" mask="url(#tHorizontalArm)" width="16" x="48" y="8" />
+		<rect fill="white" height="16" paint-order="stroke" stroke="black" stroke-width="8" width="112" x="16" y="64" />
+		<rect fill="white" height="112" mask="url(#tHorizontalArm)" width="16" x="64" y="16" />
 	</mask>
 
 	<rect fill="#FFFFFF" height="100%" mask="url(#border)" width="100%" x="0" y="0" /> <!-- oklch(50% 0.115300 158.520) -->

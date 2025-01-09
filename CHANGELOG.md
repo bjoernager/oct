@@ -3,6 +3,10 @@
 This is the changelog of [Oct](https://crates.io/crates/oct/).
 See `README.md` for more information.
 
+## 0.15.1
+
+* Update logo
+
 ## 0.15.0
 
 * Rename `SizedStr` to `String`
