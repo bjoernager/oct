@@ -8,7 +8,7 @@
 
 [package]
 name          = "oct-macros"
-version       = "0.15.2"
+version       = "0.15.3"
 edition       = "2021"
 description   = "Octonary transcoder. Procedural macros."
 documentation = "https://docs.rs/oct-macros/"

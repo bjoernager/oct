@@ -3,7 +3,12 @@
 This is the changelog of [Oct](https://crates.io/crates/oct/).
 See `README.md` for more information.
 
-## 1.15.2
+## 0.15.3
+
+* Update readme
+* Fix soundness hole in `<Vec as Decode>::decode`
+
+## 0.15.2
 
 * Clean up code
 * Update docs

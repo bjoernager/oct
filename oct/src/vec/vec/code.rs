@@ -26,16 +26,17 @@ impl<T: Decode, const N: usize> Decode for Vec<T, N> {
 			}));
 		}
 
-		let mut buf = [const { MaybeUninit::<T>::uninit() };N];
+		let mut buf = [const { MaybeUninit::<T>::uninit() }; N];
 
-		for (i, slot) in buf.iter_mut().enumerate() {
+		for (i, slot) in buf[..len].iter_mut().enumerate() {
 			let v = Decode::decode(input)
 				.map_err(|e| CollectionDecodeError::BadItem(ItemDecodeError { index: i, error: e }))?;
 
 			slot.write(v);
 		}
 
-		Ok(Self { buf, len })
+		let this = unsafe { Self::from_raw_parts(buf, len) };
+		Ok(this)
 	}
 }
 

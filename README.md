@@ -20,17 +20,17 @@ According to my runs on an AMD Ryzen 7 3700X with default settings, these benchm
 
 | Benchmark                          | [Bincode] | [Borsh] | Oct    | [Postcard] |
 | :--------------------------------- | --------: | ------: | -----: | ---------: |
-| `encode_u8`                        |    0.977s |  0.871s | 0.754s |     0.916s |
-| `encode_u32`                       |    0.967s |  0.983s | 0.730s |     2.727s |
-| `encode_u128`                      |    2.178s |  2.175s | 1.481s |     6.002s |
-| `encode_struct_unit`               |    0.000s |  0.000s | 0.000s |     0.000s |
-| `encode_struct_unnamed`            |    1.206s |  1.168s | 0.805s |     2.356s |
-| `encode_struct_named`              |    3.021s |  1.532s | 0.952s |     3.013s |
-| `encode_enum_unit`                 |    0.245s |  0.294s | 0.000s |     0.294s |
-| `decode_u8`                        |    0.952s |  0.895s | 0.885s |     0.894s |
-| `decode_non_zero_u8`               |    1.215s |  1.250s | 1.229s |     1.232s |
-| `decode_bool`                      |    1.204s |  1.224s | 1.126s |     1.176s |
-| **Total time** &#8594;             |   11.964s | 10.392s | 7.963s |    18.609s |
+| `encode_u8`                        |     0.977 |   0.871 |  0.754 |      0.916 |
+| `encode_u32`                       |     0.967 |   0.983 |  0.730 |      2.727 |
+| `encode_u128`                      |     2.178 |   2.175 |  1.481 |      6.002 |
+| `encode_struct_unit`               |     0.000 |   0.000 |  0.000 |      0.000 |
+| `encode_struct_unnamed`            |     1.206 |   1.168 |  0.805 |      2.356 |
+| `encode_struct_named`              |     3.021 |   1.532 |  0.952 |      3.013 |
+| `encode_enum_unit`                 |     0.245 |   0.294 |  0.000 |      0.294 |
+| `decode_u8`                        |     0.952 |   0.895 |  0.885 |      0.894 |
+| `decode_non_zero_u8`               |     1.215 |   1.250 |  1.229 |      1.232 |
+| `decode_bool`                      |     1.204 |   1.224 |  1.126 |      1.176 |
+| **Total time** &#8594;             |    11.964 | 1 0.392 |  7.963 |     18.609 |
 | **Total deviation (p.c.)** &#8594; |       +50 |     +31 |     ±0 |       +134 |
 
 [Bincode]: https://crates.io/crates/bincode/

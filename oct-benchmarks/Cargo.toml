@@ -22,7 +22,7 @@
 
 [package]
 name        = "oct-benchmarks"
-version     = "0.15.2"
+version     = "0.15.3"
 edition     = "2021"
 description = "Oct benchmarks."
 license     = "MIT"
