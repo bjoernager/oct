@@ -149,6 +149,8 @@ impl<T> Slot<T> {
 	///
 	/// The length of `self` is updated to reflect the new data.
 	///
+	/// # Panics
+	///
 	/// If `self` cannot contain the entirety of `data` then this method will panic.
 	#[inline]
 	pub fn copy_from_slice(&mut self, data: &[u8]) {

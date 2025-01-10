@@ -21,13 +21,11 @@ use core::str::{self, FromStr};
 use alloc::boxed::Box;
 
 #[cfg(feature = "std")]
-use std::ffi::OsStr;
-
-#[cfg(feature = "std")]
-use std::net::ToSocketAddrs;
-
-#[cfg(feature = "std")]
-use std::path::Path;
+use {
+	std::ffi::OsStr,
+	std::net::ToSocketAddrs,
+	std::path::Path,
+};
 
 impl<const N: usize> String<N> {
 	/// Constructs a fixed-size string from raw parts.

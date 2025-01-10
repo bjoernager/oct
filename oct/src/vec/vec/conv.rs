@@ -16,10 +16,11 @@ use core::ptr::copy_nonoverlapping;
 use core::slice;
 
 #[cfg(feature = "alloc")]
-use alloc::alloc::{alloc, Layout};
-
-#[cfg(feature = "alloc")]
-use alloc::boxed::Box;
+use {
+	alloc::alloc::alloc,
+	alloc::boxed::Box,
+	core::alloc::Layout,
+};
 
 impl<T, const N: usize> Vec<T, N> {
 	/// Constructs a fixed-size vector from raw parts.

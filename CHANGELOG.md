@@ -3,6 +3,13 @@
 This is the changelog of [Oct](https://crates.io/crates/oct/).
 See `README.md` for more information.
 
+## 1.15.2
+
+* Clean up code
+* Update docs
+* Update lints
+* Update crate metadata
+
 ## 0.15.1
 
 * Update logo

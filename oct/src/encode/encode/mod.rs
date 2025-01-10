@@ -46,37 +46,25 @@ use core::ops::{
 use core::time::Duration;
 
 #[cfg(feature = "alloc")]
-use alloc::borrow::{Cow, ToOwned};
-
-#[cfg(feature = "alloc")]
-use alloc::boxed::Box;
-
-#[cfg(feature = "alloc")]
-use alloc::collections::LinkedList;
-
-#[cfg(feature = "alloc")]
-use alloc::ffi::CString;
-
-#[cfg(feature = "alloc")]
-use alloc::string::String;
-
-#[cfg(feature = "alloc")]
-use alloc::vec::Vec;
-
-#[cfg(feature = "alloc")]
-use alloc::rc::Rc;
+use {
+	alloc::borrow::{Cow, ToOwned},
+	alloc::boxed::Box,
+	alloc::collections::LinkedList,
+	alloc::ffi::CString,
+	alloc::string::String,
+	alloc::vec::Vec,
+	alloc::rc::Rc,
+};
 
 #[cfg(all(feature = "alloc", target_has_atomic = "ptr"))]
 use alloc::sync::Arc;
 
 #[cfg(feature = "std")]
-use std::collections::{HashMap, HashSet};
-
-#[cfg(feature = "std")]
-use std::sync::{LazyLock, Mutex, RwLock};
-
-#[cfg(feature = "std")]
-use std::time::{SystemTime, UNIX_EPOCH};
+use {
+	std::collections::{HashMap, HashSet},
+	std::sync::{LazyLock, Mutex, RwLock},
+	std::time::{SystemTime, UNIX_EPOCH},
+};
 
 /// Denotes a type capable of being encoded.
 ///

@@ -11,13 +11,11 @@ use crate::decode::Decode;
 use core::borrow::Borrow;
 
 #[cfg(feature = "alloc")]
-use alloc::boxed::Box;
-
-#[cfg(feature = "alloc")]
-use alloc::rc::Rc;
-
-#[cfg(all(feature = "alloc", target_has_atomic = "ptr"))]
-use alloc::sync::Arc;
+use {
+	alloc::boxed::Box,
+	alloc::rc::Rc,
+	alloc::sync::Arc,
+};
 
 /// Indicates a scheme relationship between borrowed and owned types.
 ///

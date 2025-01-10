@@ -43,22 +43,18 @@ use core::ops::{
 use core::time::Duration;
 
 #[cfg(feature = "alloc")]
-use alloc::borrow::{Cow, ToOwned};
-
-#[cfg(feature = "alloc")]
-use alloc::boxed::Box;
-
-#[cfg(feature = "alloc")]
-use alloc::rc::Rc;
-
-#[cfg(all(feature = "alloc", target_has_atomic = "ptr"))]
-use alloc::sync::Arc;
+use {
+	alloc::borrow::{Cow, ToOwned},
+	alloc::boxed::Box,
+	alloc::rc::Rc,
+	alloc::sync::Arc,
+};
 
 #[cfg(feature = "std")]
-use std::sync::{Mutex, RwLock};
-
-#[cfg(feature = "std")]
-use std::time::{SystemTime, UNIX_EPOCH};
+use {
+	std::sync::{Mutex, RwLock},
+	std::time::{SystemTime, UNIX_EPOCH},
+};
 
 // Should we require `Encode` for `Decode`?
 

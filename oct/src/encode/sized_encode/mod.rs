@@ -35,22 +35,20 @@ use core::ops::{
 use core::time::Duration;
 
 #[cfg(feature = "alloc")]
-use alloc::borrow::{Cow, ToOwned};
-
-#[cfg(feature = "alloc")]
-use alloc::boxed::Box;
-
-#[cfg(feature = "alloc")]
-use alloc::rc::Rc;
+use {
+	alloc::borrow::{Cow, ToOwned},
+	alloc::boxed::Box,
+	alloc::rc::Rc,
+};
 
 #[cfg(all(feature = "alloc", target_has_atomic = "ptr"))]
 use alloc::sync::Arc;
 
 #[cfg(feature = "std")]
-use std::sync::{LazyLock, Mutex, RwLock};
-
-#[cfg(feature = "std")]
-use std::time::SystemTime;
+use {
+	std::sync::{LazyLock, Mutex, RwLock},
+	std::time::SystemTime,
+};
 
 /// Denotes a size-constrained, encodable type.
 ///

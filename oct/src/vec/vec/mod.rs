@@ -64,6 +64,10 @@ pub struct Vec<T, const N: usize> {
 
 impl<T, const N: usize> Vec<T, N> {
 	/// Constructs a new slice from existing data.
+	///
+	/// # Errors
+	///
+	/// If an array of `N` elements cannot contain the entirety of `data`, then this constructor will return an error.
 	#[inline(always)]
 	pub const fn new(data: &[T]) -> Result<Self, LengthError>
 	where
