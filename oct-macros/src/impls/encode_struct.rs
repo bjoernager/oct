@@ -39,7 +39,7 @@ pub fn encode_struct(data: DataStruct) -> TokenStream {
 
 		#[inline]
 		fn encode(&self, stream: &mut ::oct::encode::Output) -> ::core::result::Result<(), Self::Error> {
-			let #pattern = self;
+			let #pattern = *self;
 
 			#(
 				::oct::encode::Encode::encode(#captures, stream)

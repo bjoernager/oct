@@ -7,7 +7,7 @@
 // <https://mozilla.org/MPL/2.0/>.
 
 #[cfg(test)]
-mod tests;
+mod test;
 
 use core::iter::{DoubleEndedIterator, ExactSizeIterator, FusedIterator};
 use core::mem::MaybeUninit;
@@ -20,19 +20,19 @@ use core::slice;
 /// When just borrowing such vectors, the standard library's <code>core::slice::{[Iter](core::slice::Iter), [IterMut](core::slice::IterMut)}</code> types are used instead.
 #[must_use]
 pub struct IntoIter<T, const N: usize> {
-	buf: [MaybeUninit<T>; N],
-
-	pos: usize,
 	len: usize,
+	pos: usize,
+
+	buf: [MaybeUninit<T>; N],
 }
 
 impl<T, const N: usize> IntoIter<T, N> {
-	/// Constructs a new, fixed-size iterator.
+	/// Constructs a new, size-constrained iterator.
 	#[inline(always)]
 	pub(crate) const unsafe fn new(buf: [MaybeUninit<T>; N], len: usize) -> Self {
 		debug_assert!(len <= N, "cannot construct iterator longer than its capacity");
 
-		Self { buf, pos: 0x0, len }
+		Self { len, pos: 0x0, buf }
 	}
 
 	/// Gets a slice of the remaining elements.
@@ -79,7 +79,7 @@ impl<T, const N: usize> AsRef<[T]> for IntoIter<T, N> {
 impl<T: Clone, const N: usize> Clone for IntoIter<T, N> {
 	#[inline]
 	fn clone(&self) -> Self {
-		let mut buf = [const { MaybeUninit::<T>::uninit() };N];
+		let mut buf = [const { MaybeUninit::<T>::uninit() }; N];
 		let Self { pos, len, .. } = *self;
 
 		let start = pos;
@@ -95,7 +95,7 @@ impl<T: Clone, const N: usize> Clone for IntoIter<T, N> {
 			}
 		}
 
-		Self { buf, pos, len }
+		Self { len, pos, buf }
 	}
 }
 

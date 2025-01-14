@@ -3,6 +3,49 @@
 This is the changelog of [Oct](https://crates.io/crates/oct/).
 See `README.md` for more information.
 
+## 0.16.0
+
+* Reimplement `Decode` for `alloc::vec::Vec`, `alloc::string::String`, `CString`, `LinkedList`, `HashMap`, and `HashSet`
+* Reimplement `DecodeBorrowed` for `alloc::vec::Vec`, `alloc::string::String`, and `CString`
+* Update and add tests
+* Update readme
+* Clean up code
+* Implement `From<Infallible>` for all error types
+* Update docs
+* Rework `EnumEncodeError` and `EnumDecodeError`
+* Add `encode_char` benchmark
+* Implement `Encode` and `Decode` for `OsStr`, `OsString`, `c_void`, and `BinaryHeap`
+* Remove `never-type` feature flag
+* Rework `PrimDiscriminant` as `PrimRepr`
+* Add `PrimDiscriminant` enumeration
+* Implement `From<T: PrimRepr>` for `PrimDiscriminant`
+* Implement `PrimRepr` for `u8`, `u16`, `u32`, `u64`, `u128`, `usize`, `i8`, `i16`, `i32`, `i64`, `i128`, and `isize`
+* Implement `Debug`, `Display`, `Binary`, `Octal`, `LowerHex`, `UpperHex`, `LowerExp`, and `UpperExp` for `PrimDiscriminant`
+* Implement `Clone`, `Copy`, `Eq`, `PartialEq`, and `Hash` for `PrimDiscriminant`
+* Implement `Eq` and `PartialEq` for **all** error types
+* Add `as_slice` and `as_ptr` methods to `Input`
+* Implement `AsRef<[u8]>` and `Borrow<[u8]>` for `Input`
+* Implement `SizedEncode` for `c_void`
+* Fix `<LinkedList as Encode>::Error`
+* Add `new_unchecked` constructor to `String` and `Vec`
+* Rework `from_utf8` and `from_utf8_unchecked` in `String`
+* Remove `StringError`
+* Rework `String` to make it trivially-destructable
+* Actually mark `String::as_mut_str` with `const`
+* Unimplement `PartialOrd<{&str, alloc::string::String}>` for `String`
+* Implement `PartialEq<str>` for `String`
+* Unimplement `PartialOrd<{[T; M], &[T], alloc::vec::Vec<T>}>` for `Vec<T, N>`
+* Remove `is_full` method from `String` and `Vec`
+* Implement `Copy` for `String`
+* Implement `PartialEq<{Self, [u8], &[u8]}>`, `Eq`, and `Debug` for `Input`
+* Implement `PartialEq<[U]>` for `Vec<T, ..>`
+* Implement `PartialEq<Vec<U, ..>>` for `alloc::vec::Vec<T>`
+* Implement `PartialEq<String>` for `alloc::string::String`
+* Add `is_char_boundary` and `as_mut_bytes` methods to `String`
+* Add doc aliases
+* Update lints
+* Fix atomics being imported from `std`
+
 ## 0.15.3
 
 * Update readme

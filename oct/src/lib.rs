@@ -28,18 +28,19 @@
 //!
 //! | Benchmark                          | [Bincode] | [Borsh] | Oct    | [Postcard] |
 //! | :--------------------------------- | --------: | ------: | -----: | ---------: |
-//! | `encode_u8`                        |     0.977 |   0.871 |  0.754 |      0.916 |
-//! | `encode_u32`                       |     0.967 |   0.983 |  0.730 |      2.727 |
-//! | `encode_u128`                      |     2.178 |   2.175 |  1.481 |      6.002 |
+//! | `encode_u8`                        |     0.927 |   0.939 |  0.742 |      0.896 |
+//! | `encode_u32`                       |     1.069 |   1.007 |  0.738 |      2.732 |
+//! | `encode_u128`                      |     2.180 |   2.204 |  1.522 |      6.412 |
+//! | `encode_char`                      |     2.474 |   1.261 |  0.817 |      2.480 |
 //! | `encode_struct_unit`               |     0.000 |   0.000 |  0.000 |      0.000 |
-//! | `encode_struct_unnamed`            |     1.206 |   1.168 |  0.805 |      2.356 |
-//! | `encode_struct_named`              |     3.021 |   1.532 |  0.952 |      3.013 |
-//! | `encode_enum_unit`                 |     0.245 |   0.294 |  0.000 |      0.294 |
-//! | `decode_u8`                        |     0.952 |   0.895 |  0.885 |      0.894 |
-//! | `decode_non_zero_u8`               |     1.215 |   1.250 |  1.229 |      1.232 |
-//! | `decode_bool`                      |     1.204 |   1.224 |  1.126 |      1.176 |
-//! | **Total time** &#8594;             |    11.964 |  10.392 |  7.963 |     18.609 |
-//! | **Total deviation (p.c.)** &#8594; |       +50 |     +31 |     ±0 |       +134 |
+//! | `encode_struct_unnamed`            |     1.245 |   1.146 |  0.834 |      2.378 |
+//! | `encode_struct_named`              |     3.037 |   1.541 |  0.961 |      3.014 |
+//! | `encode_enum_unit`                 |     0.250 |   0.297 |  0.000 |      0.296 |
+//! | `decode_u8`                        |     0.992 |   0.926 |  0.915 |      0.981 |
+//! | `decode_non_zero_u8`               |     1.218 |   1.215 |  1.225 |      1.238 |
+//! | `decode_bool`                      |     1.064 |   1.088 |  1.046 |      1.080 |
+//! | **Total time** &#8594;             |    14.456 |  11.624 |  8.800 |     21.509 |
+//! | **Total deviation (p.c.)** &#8594; |       +64 |     +32 |     ±0 |       +144 |
 //!
 //! [Bincode]: https://crates.io/crates/bincode/
 //! [Borsh]: https://crates.io/crates/borsh/
@@ -53,11 +54,11 @@
 //!
 //! # Data model
 //!
-//! Most primitives encode losslessly, with the main exceptions being [`usize`] and [`isize`].
-//! These are instead first cast as [`u16`] and [`i16`], respectively, due to portability concerns (with respect to embedded systems).
+//! Primitives encode losslessly by default, although [`usize`] and [`isize`] are the exception to this.
+//! Due to their machine-dependent representation, these are truncated to the smallest subset of values guaranteed by Rust, with this equating to a cast to [`u16`] or [`i16`], respectively.
 //!
-//! Numerical primitives in general encode as little endian (and **not** ["network order"](https://en.wikipedia.org/wiki/Endianness#Networking)).
-//! It is recommended for implementors to follow this convention as well.
+//! Numerical types in general (including `char`) are encoded as little endian (and **not** ["network order"](https://en.wikipedia.org/wiki/Endianness#Networking) as is the norm in TCP/UDP/IP).
+//! It is recommended for implementors of custom types to adhere to this convention as well.
 //!
 //! See specific types' implementations for notes on their data models.
 //!
@@ -68,54 +69,10 @@
 //!
 //! This crate revolves around the [`Encode`](encode::Encode) and [`Decode`](decode::Decode) traits, both of which handle conversions to and from byte streams.
 //!
-//! Many standard types come implemented with Oct, including most primitives as well as some standard library types such as [`Option`] and [`Result`].
-//! Some [features](#feature-flags) enable an extended set of implementations.
+//! These traits are already implemented by Oct for a large set of the standard types, such as [`Option`] and [`Mutex`](std::sync::Mutex).
+//! Some [features](#feature-flags) enable an extended set of implementations that are locked behind unstable feature gates or other crates.
 //!
-//! It is recommended in most cases to simply derive these two traits for user-defined types, although this is only supported for enumerations and structures -- not untagged unions.
-//! When deriving, each field is *chained* according to declaration order:
-//!
-//! ```rust
-//! use oct::decode::Decode;
-//! use oct::encode::Encode;
-//! use oct::slot::Slot;
-//!
-//! #[derive(Debug, Decode, Encode, PartialEq)]
-//! struct Ints {
-//!     value0: u8,
-//!     value1: u16,
-//!     value2: u32,
-//!     value3: u64,
-//!     value4: u128,
-//! }
-//!
-//! const VALUE: Ints = Ints {
-//!     value0: 0x00,
-//!     value1: 0x02_01,
-//!     value2: 0x06_05_04_03,
-//!     value3: 0x0E_0D_0C_0B_0A_09_08_07,
-//!     value4: 0x1E_1D_1C_1B_1A_19_18_17_16_15_14_13_12_11_10_0F,
-//! };
-//!
-//! let mut buf = Slot::with_capacity(0x100);
-//!
-//! buf.write(VALUE).unwrap();
-//!
-//! assert_eq!(buf.len(), 0x1F);
-//!
-//! assert_eq!(
-//!     buf,
-//!     [
-//!         0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
-//!         0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
-//!         0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
-//!         0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E
-//!     ].as_slice(),
-//! );
-//!
-//! assert_eq!(buf.read().unwrap(), VALUE);
-//! ```
-//!
-//! The following is a more complete example of a UDP server/client for geographic data:
+//! The following is an example of a UDP server/client for geographic data:
 //!
 //! ```rust
 //! use oct::decode::Decode;
@@ -126,8 +83,8 @@
 //! use std::thread::spawn;
 //!
 //! // City, region, etc.:
-//! #[derive(Clone, Copy, Debug, Decode, Encode, Eq, PartialEq, SizedEncode)]
 //! #[non_exhaustive]
+//! #[derive(Clone, Copy, Debug, Decode, Encode, Eq, PartialEq, SizedEncode)]
 //! enum Area {
 //!     AlQuds,
 //!     Byzantion,
@@ -137,8 +94,8 @@
 //! }
 //!
 //! // Client-to-server message:
-//! #[derive(Debug, Decode, Encode, PartialEq, SizedEncode)]
 //! #[non_exhaustive]
+//! #[derive(Debug, Decode, Encode, PartialEq, SizedEncode)]
 //! enum Request {
 //!     AtmosphericHumidity { area: Area },
 //!     AtmosphericPressure { area: Area },
@@ -147,8 +104,8 @@
 //! }
 //!
 //! // Server-to-client message:
-//! #[derive(Debug, Decode, Encode, PartialEq, SizedEncode)]
 //! #[non_exhaustive]
+//! #[derive(Debug, Decode, Encode, PartialEq, SizedEncode)]
 //! enum Response {
 //!     AtmosphericHumidity(f64),
 //!     AtmosphericPressure(f64), // Pascal
@@ -159,8 +116,8 @@
 //! struct Party {
 //!     pub socket: UdpSocket,
 //!
-//!     pub request_buf:  Slot::<Request>,
-//!     pub response_buf: Slot::<Response>,
+//!     pub request_buf:  Slot<Request>,
+//!     pub response_buf: Slot<Response>,
 //! }
 //!
 //! impl Party {
@@ -230,13 +187,18 @@
 //! * `proc-macro`: Pulls procedural macros from the [`oct-macros`](https://crates.io/crates/oct-macros/) crate
 //! * `std`: Enables implementations for types [`std`], e.g. [`Mutex`](std::sync::Mutex) and [`RwLock`](std::sync::RwLock)
 //!
+//! The following features can additionally be enabled for support with nightly-only constructs:
+//!
+//! * `f128`: Enable implementations for the [`f128`] type
+//! * `f16`: Enable implementations for the [`f16`] type
+//!
 //! # Documentation
 //!
 //! Oct has its documentation written alongside its source code for use by `rustdoc`.
 //! See [Docs.rs](https://docs.rs/oct/latest/oct/) for an on-line, rendered instance.
 //!
 //! Currently, these docs make use of some unstable features for the sake of readability.
-//! The nightly toolchain is therefore required when rendering them.
+//! The nightly toolchain is therefore always required when rendering them or or running tests herein.
 //!
 //! # Contribution
 //!
@@ -256,9 +218,8 @@
 
 #![no_std]
 
-#![cfg_attr(feature = "f16",        feature(f16))]
-#![cfg_attr(feature = "f128",       feature(f128))]
-#![cfg_attr(feature = "never-type", feature(never_type))]
+#![cfg_attr(feature = "f128", feature(f128))]
+#![cfg_attr(feature = "f16",  feature(f16))]
 
 #![cfg_attr(doc, feature(doc_cfg, rustdoc_internals))]
 
@@ -282,8 +243,6 @@ macro_rules! use_mod {
 }
 pub(crate) use use_mod;
 
-use_mod!(pub primitive_discriminant);
-
 pub mod decode;
 pub mod encode;
 pub mod error;
@@ -292,3 +251,6 @@ pub mod vec;
 
 #[cfg(feature = "alloc")]
 pub mod slot;
+
+use_mod!(pub prim_discriminant);
+use_mod!(pub prim_repr);

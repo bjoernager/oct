@@ -6,9 +6,9 @@
 // can obtain one at:
 // <https://mozilla.org/MPL/2.0/>.
 
+use core::iter;
 use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
-use std::iter;
 use syn::{
 	Attribute,
 	Ident,

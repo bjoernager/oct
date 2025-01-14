@@ -8,9 +8,9 @@
 
 use crate::{Discriminants, Repr};
 
+use core::iter;
 use proc_macro2::TokenStream;
 use quote::quote;
-use std::iter;
 use syn::{DataEnum, Fields};
 
 #[must_use]
@@ -49,7 +49,7 @@ pub fn decode_enum(data: DataEnum, repr: Repr) -> TokenStream {
 		});
 
 	quote! {
-		type Error = ::oct::error::EnumDecodeError<#repr, ::oct::error::GenericDecodeError>;
+		type Error = ::oct::error::EnumDecodeError<#repr, <#repr as ::oct::decode::Decode>::Error, ::oct::error::GenericDecodeError>;
 
 		#[inline]
 		fn decode(stream: &mut ::oct::decode::Input) -> ::core::result::Result<Self, Self::Error> {
@@ -62,10 +62,10 @@ pub fn decode_enum(data: DataEnum, repr: Repr) -> TokenStream {
 			let this = match discriminant {
 				#(#discriminants => #values,)*
 
-				value => return Result::Err(::oct::error::EnumDecodeError::UnassignedDiscriminant { value }),
+				value => return ::core::result::Result::Err(::oct::error::EnumDecodeError::UnassignedDiscriminant(value)),
 			};
 
-			Result::Ok(this)
+			::core::result::Result::Ok(this)
 		}
 	}
 }

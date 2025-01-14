@@ -53,7 +53,7 @@ pub fn encode_enum(data: DataEnum, repr: Repr) -> TokenStream {
 		});
 
 	quote! {
-		type Error = ::oct::error::EnumEncodeError<#repr, ::oct::error::GenericEncodeError>;
+		type Error = ::oct::error::EnumEncodeError<<#repr as ::oct::encode::Encode>::Error, ::oct::error::GenericEncodeError>;
 
 		#[allow(unreachable_patterns)]
 		#[inline]

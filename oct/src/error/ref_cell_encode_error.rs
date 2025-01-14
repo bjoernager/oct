@@ -7,8 +7,10 @@
 // <https://mozilla.org/MPL/2.0/>.
 
 use core::cell::BorrowError;
+use core::convert::Infallible;
 use core::error::Error;
 use core::fmt::{self, Display, Formatter};
+use core::hint::unreachable_unchecked;
 
 /// A reference cell could not be encoded.
 ///
@@ -46,5 +48,14 @@ impl<E: Error + 'static> Error for RefCellEncodeError<E> {
 
 			Self::BadValue(ref e) => Some(e)
 		}
+	}
+}
+
+impl<E> From<Infallible> for RefCellEncodeError<E> {
+	#[inline(always)]
+	fn from(_value: Infallible) -> Self {
+		// SAFETY: `Infallible` objects can never be con-
+		// structed.
+		unsafe { unreachable_unchecked() };
 	}
 }

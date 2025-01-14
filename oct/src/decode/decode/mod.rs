@@ -7,7 +7,7 @@
 // <https://mozilla.org/MPL/2.0/>.
 
 #[cfg(test)]
-mod tests;
+mod test;
 
 use crate::decode::{DecodeBorrowed, Input};
 use crate::error::{
@@ -20,6 +20,7 @@ use crate::error::{
 
 use core::cell::{Cell, RefCell, UnsafeCell};
 use core::convert::Infallible;
+use core::ffi::c_void;
 use core::marker::{PhantomData, PhantomPinned};
 use core::mem::MaybeUninit;
 use core::net::{
@@ -44,14 +45,22 @@ use core::time::Duration;
 
 #[cfg(feature = "alloc")]
 use {
+	crate::error::Utf8Error,
+
 	alloc::borrow::{Cow, ToOwned},
 	alloc::boxed::Box,
+	alloc::collections::{BinaryHeap, LinkedList},
+	alloc::ffi::CString,
 	alloc::rc::Rc,
 	alloc::sync::Arc,
 };
 
 #[cfg(feature = "std")]
 use {
+	core::hash::{BuildHasher, Hash},
+
+	std::collections::{HashMap, HashSet},
+	std::ffi::OsString,
 	std::sync::{Mutex, RwLock},
 	std::time::{SystemTime, UNIX_EPOCH},
 };
@@ -59,6 +68,7 @@ use {
 // Should we require `Encode` for `Decode`?
 
 /// Denotes a type capable of being decoded.
+#[doc(alias("Deserialise", "Deserialize"))]
 pub trait Decode: Sized {
 	/// The type returned in case of error.
 	type Error;
@@ -109,7 +119,7 @@ impl<T: Decode, const N: usize> Decode for [T; N] {
 		// dropped automatically, so we can just forget
 		// about it from this point on. `transmute` cannot
 		// be used here, and `transmute_unchecked` is re-
-		// served for the greedy rustc devs. :(
+		// served for the greedy rustc devs. >:(
 		let this = unsafe { buf.as_ptr().cast::<[T; N]>().read() };
 		Ok(this)
 	}
@@ -125,6 +135,20 @@ impl<T: Decode> Decode for Arc<T> {
 		let value = Decode::decode(input)?;
 
 		let this = Self::new(value);
+		Ok(this)
+	}
+}
+
+#[cfg(feature = "alloc")]
+#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
+impl<T: Decode + Ord> Decode for BinaryHeap<T> {
+	type Error = <alloc::vec::Vec<T> as Decode>::Error;
+
+	#[inline(always)]
+	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
+		let v = alloc::vec::Vec::decode(input)?;
+
+		let this = v.into();
 		Ok(this)
 	}
 }
@@ -145,7 +169,7 @@ impl Decode for bool {
 }
 
 impl<T: Decode> Decode for Bound<T> {
-	type Error = EnumDecodeError<u8, T::Error>;
+	type Error = EnumDecodeError<u8, <u8 as Decode>::Error, T::Error>;
 
 	#[inline(always)]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
@@ -168,7 +192,7 @@ impl<T: Decode> Decode for Bound<T> {
 
 			0x2 => Self::Unbounded,
 
-			value => return Err(EnumDecodeError::UnassignedDiscriminant { value }),
+			value => return Err(EnumDecodeError::UnassignedDiscriminant(value)),
 		};
 
 		Ok(this)
@@ -189,6 +213,30 @@ impl<T: Decode> Decode for Box<T> {
 	}
 }
 
+#[cfg(feature = "alloc")]
+#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
+impl Decode for CString {
+	type Error = <alloc::vec::Vec<u8> as Decode>::Error;
+
+	/// Decodes a byte slice from the input.
+	///
+	/// This implementation will always allocate one more byte than specified by the slice for the null terminator.
+	/// Note that any null value already in the data will truncate the final string.
+	#[inline(always)]
+	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
+		let Ok(len) = usize::decode(input);
+
+		let mut v = alloc::vec![0x00; len + 0x1];
+		input.read_into(&mut v[..len]).unwrap();
+
+		// SAFETY: We have guaranteed that there is at
+		// least one null value. We also don't care if the
+		// string gets truncated.
+		let this = unsafe { Self::from_vec_with_nul_unchecked(v) };
+		Ok(this)
+	}
+}
+
 impl<T: Decode> Decode for Cell<T> {
 	type Error = T::Error;
 
@@ -198,6 +246,15 @@ impl<T: Decode> Decode for Cell<T> {
 
 		let this = Self::new(value);
 		Ok(this)
+	}
+}
+
+impl Decode for c_void {
+	type Error = Infallible;
+
+	#[inline(always)]
+	fn decode(_input: &mut Input) -> Result<Self, Self::Error> {
+		panic!("cannot deserialise `c_void` as it cannot be constructed to begin with")
 	}
 }
 
@@ -280,28 +337,84 @@ impl Decode for f16 {
 	}
 }
 
+#[cfg(feature = "std")]
+#[cfg_attr(doc, doc(cfg(feature = "std")))]
+impl<K, V, S, E> Decode for HashMap<K, V, S>
+where
+	K: Decode<Error = E> + Eq + Hash,
+	V: Decode<Error = E>,
+	S: BuildHasher + Default,
+{
+	type Error = CollectionDecodeError<Infallible, ItemDecodeError<usize, E>>;
+
+	#[inline]
+	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
+		let Ok(len) = Decode::decode(input);
+
+		let mut this = Self::with_capacity_and_hasher(len, Default::default());
+
+		for i in 0x0..len {
+			let key= Decode::decode(input)
+				.map_err(|e| CollectionDecodeError::BadItem(ItemDecodeError { index: i, error: e }))?;
+
+			let value = Decode::decode(input)
+				.map_err(|e| CollectionDecodeError::BadItem(ItemDecodeError { index: i, error: e }))?;
+
+			this.insert(key, value);
+		}
+
+		Result::Ok(this)
+	}
+}
+
+
+#[cfg(feature = "std")]
+#[cfg_attr(doc, doc(cfg(feature = "std")))]
+impl<K, S> Decode for HashSet<K, S>
+where
+	K: Decode + Eq + Hash,
+	S: BuildHasher + Default,
+{
+	type Error = CollectionDecodeError<Infallible, ItemDecodeError<usize, K::Error>>;
+
+	#[inline]
+	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
+		let Ok(len) = Decode::decode(input);
+
+		let mut this = Self::with_capacity_and_hasher(len, Default::default());
+
+		for i in 0x0..len {
+			let key = Decode::decode(input)
+				.map_err(|e| CollectionDecodeError::BadItem(ItemDecodeError { index: i, error: e }) )?;
+
+			this.insert(key);
+		}
+
+		Result::Ok(this)
+	}
+}
+
 impl Decode for Infallible {
 	type Error = Self;
 
 	#[inline(always)]
 	fn decode(_input: &mut Input) -> Result<Self, Self::Error> {
-		panic!("cannot deserialise `Infallible` as it cannot be serialised to begin with")
+		panic!("cannot deserialise `Infallible` as it cannot be constructed to begin with")
 	}
 }
 
 impl Decode for IpAddr {
-	type Error = EnumDecodeError<u8, Infallible>;
+	type Error = EnumDecodeError<u8, <u8 as Decode>::Error, Infallible>;
 
 	#[inline]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
-		let discriminant = u8::decode(input)
-			.map_err(EnumDecodeError::InvalidDiscriminant)?;
+		let Ok(discriminant) = u8::decode(input);
 
 		let this = match discriminant {
 			0x4 => Self::V4(Decode::decode(input).unwrap()),
 			0x6 => Self::V6(Decode::decode(input).unwrap()),
 
-			value => return Err(EnumDecodeError::UnassignedDiscriminant { value })
+			value => return Err(EnumDecodeError::UnassignedDiscriminant(value))
 		};
 
 		Ok(this)
@@ -343,6 +456,28 @@ impl Decode for isize {
 	}
 }
 
+#[cfg(feature = "alloc")]
+#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
+impl<T: Decode> Decode for LinkedList<T> {
+	type Error = CollectionDecodeError<Infallible, ItemDecodeError<usize, T::Error>>;
+
+	#[inline]
+	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
+		let Ok(len) = usize::decode(input);
+
+		let mut this = Self::new();
+
+		for i in 0x0..len {
+			let value = T::decode(input)
+				.map_err(|e| CollectionDecodeError::BadItem(ItemDecodeError { index: i, error: e }))?;
+
+			this.push_back(value);
+		}
+
+		Ok(this)
+	}
+}
+
 #[cfg(feature = "std")]
 #[cfg_attr(doc, doc(cfg(feature = "std")))]
 impl<T: Decode> Decode for Mutex<T> {
@@ -357,25 +492,13 @@ impl<T: Decode> Decode for Mutex<T> {
 	}
 }
 
-#[cfg(feature = "never-type")]
-#[cfg_attr(doc, doc(cfg(feature = "never-type")))]
-impl Decode for ! {
-	type Error = Infallible;
-
-	#[inline(always)]
-	fn decode(_input: &mut Input) -> Result<Self, Self::Error> {
-		panic!("cannot deserialise `!` as it cannot be serialised to begin with")
-	}
-}
-
 impl<T: Decode> Decode for Option<T> {
 	type Error = T::Error;
 
 	#[expect(clippy::if_then_some_else_none)] // ???
 	#[inline]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
-		let sign = bool::decode(input)
-			.map_err::<T::Error, _>(|_e| unreachable!())?;
+		let Ok(sign) = bool::decode(input);
 
 		let this = if sign {
 			Some(Decode::decode(input)?)
@@ -383,6 +506,20 @@ impl<T: Decode> Decode for Option<T> {
 			None
 		};
 
+		Ok(this)
+	}
+}
+
+#[cfg(feature = "std")]
+#[cfg_attr(doc, doc(cfg(feature = "std")))]
+impl Decode for OsString {
+	type Error = <alloc::string::String as Decode>::Error;
+
+	#[inline(always)]
+	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
+		let s: alloc::string::String = Decode::decode(input)?;
+
+		let this = s.into();
 		Ok(this)
 	}
 }
@@ -499,7 +636,7 @@ where
 	T: Decode<Error = Err>,
 	E: Decode<Error: Into<Err>>,
 {
-	type Error = EnumDecodeError<bool, Err>;
+	type Error = EnumDecodeError<bool, <bool as Decode>::Error, Err>;
 
 	#[inline]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
@@ -550,7 +687,7 @@ impl<T: Decode> Decode for Saturating<T> {
 }
 
 impl Decode for SocketAddr {
-	type Error = EnumDecodeError<u8, Infallible>;
+	type Error = EnumDecodeError<u8, <u8 as Decode>::Error, Infallible>;
 
 	#[inline]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
@@ -560,7 +697,7 @@ impl Decode for SocketAddr {
 			0x4 => Ok(Self::V4(Decode::decode(input).unwrap())),
 			0x6 => Ok(Self::V6(Decode::decode(input).unwrap())),
 
-			value => Err(EnumDecodeError::UnassignedDiscriminant { value }),
+			value => Err(EnumDecodeError::UnassignedDiscriminant(value)),
 		}
 	}
 }
@@ -590,6 +727,33 @@ impl Decode for SocketAddrV6 {
 
 		let this = Self::new(ip, port, flow_info, scope_id);
 		Ok(this)
+	}
+}
+
+#[cfg(feature = "alloc")]
+#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
+impl Decode for alloc::string::String {
+	type Error = CollectionDecodeError<Infallible, Utf8Error>;
+
+	#[inline]
+	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
+		let Ok(len) = Decode::decode(input);
+
+		let mut v = alloc::vec![0x00; len];
+		input.read_into(&mut v).unwrap();
+
+		match Self::from_utf8(v) {
+			Ok(s) => Ok(s),
+
+			Err(e) => {
+				let i = e.utf8_error().valid_up_to();
+				let c = e.as_bytes()[i];
+
+				Err(CollectionDecodeError::BadItem(
+					Utf8Error { value: c, index: i },
+				))
+			}
+		}
 	}
 }
 
@@ -644,6 +808,34 @@ impl Decode for usize {
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let Ok(value) = u16::decode(input);
 		Ok(value as Self)
+	}
+}
+
+#[cfg(feature = "alloc")]
+#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
+impl<T: Decode> Decode for alloc::vec::Vec<T> {
+	type Error = CollectionDecodeError<Infallible, ItemDecodeError<usize, T::Error>>;
+
+	#[inline]
+	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
+		let Ok(len) = Decode::decode(input);
+
+		let mut this = Self::with_capacity(len);
+
+		let buf = this.as_mut_ptr();
+		for i in 0x0..len {
+			let value = Decode::decode(input)
+				.map_err(|e| CollectionDecodeError::BadItem(ItemDecodeError { index: i, error: e }))?;
+
+			// SAFETY: Each index is within bounds (i.e. capac-
+			// ity).
+			unsafe { buf.add(i).write(value) };
+		}
+
+		// SAFETY: We have initialised the buffer.
+		unsafe { this.set_len(len); }
+
+		Ok(this)
 	}
 }
 
@@ -892,65 +1084,65 @@ impl_non_zero!(usize);
 impl_atomic! {
 	width: "8",
 	ty: bool,
-	atomic_ty: std::sync::atomic::AtomicBool,
+	atomic_ty: core::sync::atomic::AtomicBool,
 }
 
 impl_atomic! {
 	width: "16",
 	ty: i16,
-	atomic_ty: std::sync::atomic::AtomicI16,
+	atomic_ty: core::sync::atomic::AtomicI16,
 }
 
 impl_atomic! {
 	width: "32",
 	ty: i32,
-	atomic_ty: std::sync::atomic::AtomicI32,
+	atomic_ty: core::sync::atomic::AtomicI32,
 }
 
 impl_atomic! {
 	width: "64",
 	ty: i64,
-	atomic_ty: std::sync::atomic::AtomicI64,
+	atomic_ty: core::sync::atomic::AtomicI64,
 }
 
 impl_atomic! {
 	width: "8",
 	ty: i8,
-	atomic_ty: std::sync::atomic::AtomicI8,
+	atomic_ty: core::sync::atomic::AtomicI8,
 }
 
 impl_atomic! {
 	width: "ptr",
 	ty: isize,
-	atomic_ty: std::sync::atomic::AtomicIsize,
+	atomic_ty: core::sync::atomic::AtomicIsize,
 }
 
 impl_atomic! {
 	width: "16",
 	ty: u16,
-	atomic_ty: std::sync::atomic::AtomicU16,
+	atomic_ty: core::sync::atomic::AtomicU16,
 }
 
 impl_atomic! {
 	width: "32",
 	ty: u32,
-	atomic_ty: std::sync::atomic::AtomicU32,
+	atomic_ty: core::sync::atomic::AtomicU32,
 }
 
 impl_atomic! {
 	width: "64",
 	ty: u64,
-	atomic_ty: std::sync::atomic::AtomicU64,
+	atomic_ty: core::sync::atomic::AtomicU64,
 }
 
 impl_atomic! {
 	width: "8",
 	ty: u8,
-	atomic_ty: std::sync::atomic::AtomicU8,
+	atomic_ty: core::sync::atomic::AtomicU8,
 }
 
 impl_atomic! {
 	width: "ptr",
 	ty: usize,
-	atomic_ty: std::sync::atomic::AtomicUsize,
+	atomic_ty: core::sync::atomic::AtomicUsize,
 }

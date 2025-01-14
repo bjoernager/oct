@@ -6,8 +6,13 @@
 // can obtain one at:
 // <https://mozilla.org/MPL/2.0/>.
 
+#[cfg(test)]
+mod test;
+
 use crate::error::InputError;
 
+use core::borrow::Borrow;
+use core::fmt::{self, Debug, Formatter};
 use core::ptr::copy_nonoverlapping;
 use core::slice;
 
@@ -108,5 +113,68 @@ impl<'a> Input<'a> {
 	#[must_use]
 	pub const fn position(&self) -> usize {
 		self.pos
+	}
+
+	/// Gets a pointer to the next byte of the input stream.
+	#[inline(always)]
+	#[must_use]
+	pub const fn as_ptr(&self) -> *const u8 {
+		unsafe { self.buf.as_ptr().add(self.position()) }
+	}
+
+	/// Gets a slice of the remaining bytes.
+	#[inline(always)]
+	#[must_use]
+	pub const fn as_slice(&self) -> &[u8] {
+		unsafe {
+			let ptr = self.as_ptr();
+			let len = self.remaining();
+
+			slice::from_raw_parts(ptr, len)
+		}
+	}
+}
+
+impl AsRef<[u8]> for Input<'_> {
+	#[inline(always)]
+	fn as_ref(&self) -> &[u8] {
+		self.as_slice()
+	}
+}
+
+impl Borrow<[u8]> for Input<'_> {
+	#[inline(always)]
+	fn borrow(&self) -> &[u8] {
+		self.as_slice()
+	}
+}
+
+impl Debug for Input<'_> {
+	#[inline(always)]
+	fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+		Debug::fmt(self.as_slice(), f)
+	}
+}
+
+impl Eq for Input<'_> { }
+
+impl PartialEq for Input<'_> {
+	#[inline(always)]
+	fn eq(&self, other: &Self) -> bool {
+		self.as_slice() == other.as_slice()
+	}
+}
+
+impl PartialEq<[u8]> for Input<'_> {
+	#[inline(always)]
+	fn eq(&self, other: &[u8]) -> bool {
+		self.as_slice() == other
+	}
+}
+
+impl PartialEq<&[u8]> for Input<'_> {
+	#[inline(always)]
+	fn eq(&self, other: &&[u8]) -> bool {
+		self.as_slice() == *other
 	}
 }

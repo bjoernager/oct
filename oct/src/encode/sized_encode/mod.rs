@@ -7,12 +7,13 @@
 // <https://mozilla.org/MPL/2.0/>.
 
 #[cfg(test)]
-mod tests;
+mod test;
 
 use crate::encode::Encode;
 
 use core::cell::{Cell, LazyCell, RefCell, UnsafeCell};
 use core::convert::Infallible;
+use core::ffi::c_void;
 use core::marker::{PhantomData, PhantomPinned};
 use core::net::{
 	IpAddr,
@@ -60,6 +61,7 @@ use {
 ///
 /// Also note that -- in practice -- this trait is **not** strictly enforceable.
 /// Users of this trait should assume that it is mostly properly defined, but still with the possibility of it not being such.
+#[doc(alias("SizedSerialise", "SizedSerialize"))]
 pub trait SizedEncode: Encode {
 	/// The maximum, guaranteed amount of bytes that can result from an encoding.
 	///
@@ -106,6 +108,10 @@ impl<T: SizedEncode> SizedEncode for Bound<T> {
 #[cfg_attr(doc, doc(cfg(feature = "alloc")))]
 impl<T: SizedEncode + ?Sized> SizedEncode for Box<T> {
 	const MAX_ENCODED_SIZE: usize = T::MAX_ENCODED_SIZE;
+}
+
+impl SizedEncode for c_void {
+	const MAX_ENCODED_SIZE: usize = 0x0;
 }
 
 impl<T: Copy + SizedEncode> SizedEncode for Cell<T> {
@@ -176,12 +182,6 @@ impl<T: SizedEncode> SizedEncode for LazyLock<T> {
 #[cfg_attr(doc, doc(cfg(feature = "std")))]
 impl<T: SizedEncode + ?Sized> SizedEncode for Mutex<T> {
 	const MAX_ENCODED_SIZE: usize = T::MAX_ENCODED_SIZE;
-}
-
-#[cfg(feature = "never-type")]
-#[cfg_attr(doc, doc(cfg(feature = "never-type")))]
-impl SizedEncode for ! {
-	const MAX_ENCODED_SIZE: usize = 0x0;
 }
 
 impl<T: SizedEncode> SizedEncode for Option<T> {
@@ -478,65 +478,65 @@ impl_non_zero!(usize);
 impl_atomic! {
 	width: "8",
 	ty: bool,
-	atomic_ty: std::sync::atomic::AtomicBool,
+	atomic_ty: core::sync::atomic::AtomicBool,
 }
 
 impl_atomic! {
 	width: "16",
 	ty: i16,
-	atomic_ty: std::sync::atomic::AtomicI16,
+	atomic_ty: core::sync::atomic::AtomicI16,
 }
 
 impl_atomic! {
 	width: "32",
 	ty: i32,
-	atomic_ty: std::sync::atomic::AtomicI32,
+	atomic_ty: core::sync::atomic::AtomicI32,
 }
 
 impl_atomic! {
 	width: "64",
 	ty: i64,
-	atomic_ty: std::sync::atomic::AtomicI64,
+	atomic_ty: core::sync::atomic::AtomicI64,
 }
 
 impl_atomic! {
 	width: "8",
 	ty: i8,
-	atomic_ty: std::sync::atomic::AtomicI8,
+	atomic_ty: core::sync::atomic::AtomicI8,
 }
 
 impl_atomic! {
 	width: "ptr",
 	ty: isize,
-	atomic_ty: std::sync::atomic::AtomicIsize,
+	atomic_ty: core::sync::atomic::AtomicIsize,
 }
 
 impl_atomic! {
 	width: "16",
 	ty: u16,
-	atomic_ty: std::sync::atomic::AtomicU16,
+	atomic_ty: core::sync::atomic::AtomicU16,
 }
 
 impl_atomic! {
 	width: "32",
 	ty: u32,
-	atomic_ty: std::sync::atomic::AtomicU32,
+	atomic_ty: core::sync::atomic::AtomicU32,
 }
 
 impl_atomic! {
 	width: "64",
 	ty: u64,
-	atomic_ty: std::sync::atomic::AtomicU64,
+	atomic_ty: core::sync::atomic::AtomicU64,
 }
 
 impl_atomic! {
 	width: "8",
 	ty: u8,
-	atomic_ty: std::sync::atomic::AtomicU8,
+	atomic_ty: core::sync::atomic::AtomicU8,
 }
 
 impl_atomic! {
 	width: "ptr",
 	ty: usize,
-	atomic_ty: std::sync::atomic::AtomicUsize,
+	atomic_ty: core::sync::atomic::AtomicUsize,
 }

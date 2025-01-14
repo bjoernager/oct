@@ -8,9 +8,9 @@
 
 use crate::Repr;
 
+use core::iter;
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
-use std::iter;
 use syn::DataEnum;
 
 #[must_use]

@@ -6,18 +6,17 @@
 // can obtain one at:
 // <https://mozilla.org/MPL/2.0/>.
 
-use crate::encode::Encode;
-
 use core::convert::Infallible;
 use core::error::Error;
 use core::fmt::{self, Debug, Display, Formatter};
+use core::hint::unreachable_unchecked;
 
 /// An enumeration could not be encoded.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 #[must_use]
-pub enum EnumEncodeError<D: Encode, F> {
+pub enum EnumEncodeError<D, F> {
 	/// The discriminant could not be encoded.
-	BadDiscriminant(D::Error),
+	BadDiscriminant(D),
 
 	/// A field could not be encoded.
 	BadField(F),
@@ -25,7 +24,7 @@ pub enum EnumEncodeError<D: Encode, F> {
 
 impl<D, F> Display for EnumEncodeError<D, F>
 where
-	D: Display + Encode<Error: Display>,
+	D: Display,
 	F: Display,
 {
 	#[inline]
@@ -42,7 +41,7 @@ where
 
 impl<D, F> Error for EnumEncodeError<D, F>
 where
-	D: Debug + Display + Encode<Error: Error + 'static>,
+	D: Error + 'static,
 	F: Error + 'static,
 {
 	#[inline]
@@ -55,9 +54,18 @@ where
 	}
 }
 
+impl<D, F> From<Infallible> for EnumEncodeError<D, F> {
+	#[inline(always)]
+	fn from(_value: Infallible) -> Self {
+		// SAFETY: `Infallible` objects can never be con-
+		// structed.
+		unsafe { unreachable_unchecked() };
+	}
+}
+
 impl<D, F> From<EnumEncodeError<D, F>> for Infallible
 where
-	D: Encode<Error: Into<Self>>,
+	D: Into<Self>,
 	F: Into<Self>,
 {
 	#[inline(always)]

@@ -6,8 +6,10 @@
 // can obtain one at:
 // <https://mozilla.org/MPL/2.0/>.
 
+use core::convert::Infallible;
 use core::error::Error;
 use core::fmt::{self, Display, Formatter};
+use core::hint::unreachable_unchecked;
 
 /// A character could not be decoded.
 ///
@@ -31,3 +33,12 @@ impl Display for CharDecodeError {
 }
 
 impl Error for CharDecodeError { }
+
+impl From<Infallible> for CharDecodeError {
+	#[inline(always)]
+	fn from(_value: Infallible) -> Self {
+		// SAFETY: `Infallible` objects can never be con-
+		// structed.
+		unsafe { unreachable_unchecked() };
+	}
+}

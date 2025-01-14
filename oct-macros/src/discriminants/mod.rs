@@ -6,7 +6,7 @@
 // can obtain one at:
 // <https://mozilla.org/MPL/2.0/>.
 
-use std::borrow::Borrow;
+use core::borrow::Borrow;
 use proc_macro2::Span;
 use syn::{Expr, Lit, LitInt, Variant};
 

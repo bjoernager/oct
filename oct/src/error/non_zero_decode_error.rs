@@ -6,8 +6,10 @@
 // can obtain one at:
 // <https://mozilla.org/MPL/2.0/>.
 
+use core::convert::Infallible;
 use core::error::Error;
 use core::fmt::{self, Display, Formatter};
+use core::hint::unreachable_unchecked;
 
 /// A non-zero integer could not be decoded.
 ///
@@ -23,3 +25,12 @@ impl Display for NonZeroDecodeError {
 }
 
 impl Error for NonZeroDecodeError { }
+
+impl From<Infallible> for NonZeroDecodeError {
+	#[inline(always)]
+	fn from(_value: Infallible) -> Self {
+		// SAFETY: `Infallible` objects can never be con-
+		// structed.
+		unsafe { unreachable_unchecked() };
+	}
+}

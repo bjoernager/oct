@@ -6,10 +6,10 @@
 // can obtain one at:
 // <https://mozilla.org/MPL/2.0/>.
 
+use core::iter;
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{DataStruct, Fields};
-use std::iter;
 
 #[must_use]
 pub fn decode_struct(data: DataStruct) -> TokenStream {

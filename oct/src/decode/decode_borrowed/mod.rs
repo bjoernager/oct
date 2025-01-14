@@ -13,9 +13,14 @@ use core::borrow::Borrow;
 #[cfg(feature = "alloc")]
 use {
 	alloc::boxed::Box,
+	alloc::ffi::CString,
 	alloc::rc::Rc,
 	alloc::sync::Arc,
+	core::ffi::CStr,
 };
+
+#[cfg(feature = "std")]
+use std::ffi::{OsStr, OsString};
 
 /// Indicates a scheme relationship between borrowed and owned types.
 ///
@@ -31,6 +36,7 @@ use {
 /// [\[T\]]: slice
 ///
 /// An alternative to using arrays would be to use the [`Vec`](crate::vec::Vec) type, which *does* use the same scheme.
+#[doc(alias("DeserialiseBorrowed", "DeserializeBorrowed"))]
 pub trait DecodeBorrowed<B: ?Sized>: Borrow<B> + Decode { }
 
 impl<T: Decode> DecodeBorrowed<T> for T { }
@@ -45,4 +51,20 @@ impl<T: Decode> DecodeBorrowed<T> for Box<T> { }
 
 #[cfg(feature = "alloc")]
 #[cfg_attr(doc, doc(cfg(feature = "alloc")))]
+impl DecodeBorrowed<CStr> for CString { }
+
+#[cfg(feature = "std")]
+#[cfg_attr(doc, doc(cfg(feature = "std")))]
+impl DecodeBorrowed<OsStr> for OsString { }
+
+#[cfg(feature = "alloc")]
+#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
 impl<T: Decode> DecodeBorrowed<T> for Rc<T> { }
+
+#[cfg(feature = "alloc")]
+#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
+impl DecodeBorrowed<str> for alloc::string::String { }
+
+#[cfg(feature = "alloc")]
+#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
+impl<T: Decode> DecodeBorrowed<[T]> for alloc::vec::Vec<T> { }

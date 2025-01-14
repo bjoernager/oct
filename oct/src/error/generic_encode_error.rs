@@ -6,7 +6,6 @@
 // can obtain one at:
 // <https://mozilla.org/MPL/2.0/>.
 
-use crate::encode::Encode;
 use crate::error::{
 	CollectionEncodeError,
 	EnumEncodeError,
@@ -23,11 +22,11 @@ use core::hint::unreachable_unchecked;
 
 /// A generic encoding error type.
 ///
-/// The intended use of this type is by [derived](derive@crate::encode::Encode) implementations of [`Encode`].
+/// The intended use of this type is by [derived](derive@crate::encode::Encode) implementations of [`crate::encode::Encode`].
 /// Manual implementors are recommended to use a custom or less generic type for the sake of efficiency.
-#[derive(Debug)]
 #[must_use]
 #[non_exhaustive]
+#[derive(Debug)]
 pub enum GenericEncodeError {
 	/// A [`RefCell`](core::cell::RefCell) object could not be borrowed.
 	BadBorrow(BorrowError),
@@ -96,7 +95,7 @@ where
 
 impl<D, F> From<EnumEncodeError<D, F>> for GenericEncodeError
 where
-	D: Encode<Error: Into<Self>>,
+	D: Into<Self>,
 	F: Into<Self>,
 {
 	#[inline(always)]

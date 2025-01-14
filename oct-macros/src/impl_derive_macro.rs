@@ -20,11 +20,11 @@ use syn::{
 };
 
 pub fn impl_derive_macro<S, E>(
-	input:          DeriveInput,
-	trait_path:     Path,
-	r#unsafe_token: Option<Token![unsafe]>,
-	struct_body:    S,
-	enum_body:      E,
+	input:        DeriveInput,
+	trait_path:   Path,
+	unsafe_token: Option<Token![unsafe]>,
+	struct_body:  S,
+	enum_body:    E,
 ) -> TokenStream
 where
 	S: FnOnce(DataStruct)     -> TokenStream,
@@ -47,7 +47,7 @@ where
 			enum_body(data, repr)
 		}
 
-		Data::Union(..) => panic!("unions cannot derive `{trait_name:?}`"),
+		Data::Union(..) => panic!("unions cannot derive `{trait_name}`"),
 	};
 
 	let generic_params = &input.generics.params;

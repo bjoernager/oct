@@ -6,9 +6,9 @@
 // can obtain one at:
 // <https://mozilla.org/MPL/2.0/>.
 
+use core::str::FromStr;
 use oct::string::String;
 use oct::vec::Vec;
-use std::str::FromStr;
 
 #[test]
 fn test_vec_iter_clone() {

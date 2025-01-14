@@ -6,8 +6,10 @@
 // can obtain one at:
 // <https://mozilla.org/MPL/2.0/>.
 
+use core::convert::Infallible;
 use core::error::Error;
 use core::fmt::{self, Display, Formatter};
+use core::hint::unreachable_unchecked;
 
 /// An invalid UTF-8 sequence was encountered.
 #[derive(Debug, Eq, PartialEq)]
@@ -28,3 +30,12 @@ impl Display for Utf8Error {
 }
 
 impl Error for Utf8Error { }
+
+impl From<Infallible> for Utf8Error {
+	#[inline(always)]
+	fn from(_value: Infallible) -> Self {
+		// SAFETY: `Infallible` objects can never be con-
+		// structed.
+		unsafe { unreachable_unchecked() };
+	}
+}

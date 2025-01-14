@@ -7,7 +7,7 @@
 // <https://mozilla.org/MPL/2.0/>.
 
 #[cfg(test)]
-mod tests;
+mod test;
 
 use crate::encode::Output;
 use crate::error::{
@@ -17,11 +17,12 @@ use crate::error::{
 	ItemEncodeError,
 	RefCellEncodeError,
 	UsizeEncodeError,
+	Utf8Error,
 };
 
 use core::cell::{Cell, LazyCell, RefCell, UnsafeCell};
 use core::convert::Infallible;
-use core::ffi::CStr;
+use core::ffi::{CStr, c_void};
 use core::hash::BuildHasher;
 use core::hint::unreachable_unchecked;
 use core::marker::{PhantomData, PhantomPinned};
@@ -49,7 +50,7 @@ use core::time::Duration;
 use {
 	alloc::borrow::{Cow, ToOwned},
 	alloc::boxed::Box,
-	alloc::collections::LinkedList,
+	alloc::collections::{BinaryHeap, LinkedList},
 	alloc::ffi::CString,
 	alloc::string::String,
 	alloc::vec::Vec,
@@ -61,15 +62,18 @@ use alloc::sync::Arc;
 
 #[cfg(feature = "std")]
 use {
+	core::str,
+
 	std::collections::{HashMap, HashSet},
+	std::ffi::{OsStr, OsString},
 	std::sync::{LazyLock, Mutex, RwLock},
 	std::time::{SystemTime, UNIX_EPOCH},
 };
 
 /// Denotes a type capable of being encoded.
 ///
-/// It is recommended to simply derive this trait for custom types.
-/// It can, of course, also just be manually implemented.
+/// It is recommended to simply derive this trait for custom types (see the [`Encode`](derive@crate::encode::Encode) macro).
+/// The trait can, of course, also just be manually implemented.
 ///
 /// If all possible encodings have a known, maximum size, then the [`SizedEncode`](crate::encode::SizedEncode) trait should be considered as well.
 ///
@@ -105,6 +109,7 @@ use {
 ///     }
 /// }
 /// ```
+#[doc(alias("Serialise", "Serialize"))]
 pub trait Encode {
 	/// The type returned in case of error.
 	type Error;
@@ -202,6 +207,17 @@ impl<T: Encode + ?Sized> Encode for Arc<T> {
 	}
 }
 
+#[cfg(feature = "alloc")]
+#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
+impl<T: Encode> Encode for BinaryHeap<T> {
+	type Error = <[T] as Encode>::Error;
+
+	#[inline(always)]
+	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
+		self.as_slice().encode(output)
+	}
+}
+
 impl Encode for bool {
 	type Error = <u8 as Encode>::Error;
 
@@ -248,6 +264,40 @@ impl<T: Encode + ?Sized> Encode for Box<T> {
 	}
 }
 
+impl Encode for CStr {
+	type Error = <[u8] as Encode>::Error;
+
+	/// Encodes the string identically to [a byte slice](slice) containing the string's byte values **excluding** the null terminator.
+	#[inline(always)]
+	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
+		self.to_bytes().encode(output)
+	}
+}
+
+#[cfg(feature = "alloc")]
+#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
+impl Encode for CString {
+	type Error = <CStr as Encode>::Error;
+
+	/// See the the implementation of [`CStr`].
+	#[inline(always)]
+	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
+		self.as_c_str().encode(output)
+	}
+}
+
+impl Encode for c_void {
+	type Error = Infallible;
+
+	#[inline(always)]
+	fn encode(&self, _output: &mut Output) -> Result<(), Self::Error> {
+		// NOTE: Contrary to `Infallible` and/or `!`,
+		// `c_void` *can* actually be constructed (although
+		// only by the the standard library).
+		unreachable!();
+	}
+}
+
 impl<T: Copy + Encode> Encode for Cell<T> {
 	type Error = T::Error;
 
@@ -274,28 +324,6 @@ impl<T: Encode + ToOwned + ?Sized> Encode for Cow<'_, T> {
 	#[inline(always)]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		T::encode(self, output)
-	}
-}
-
-impl Encode for CStr {
-	type Error = <[u8] as Encode>::Error;
-
-	/// Encodes the string identically to [a byte slice](slice) containing the string's byte values **excluding** the null terminator.
-	#[inline(always)]
-	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
-		self.to_bytes().encode(output)
-	}
-}
-
-#[cfg(feature = "alloc")]
-#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
-impl Encode for CString {
-	type Error = <CStr as Encode>::Error;
-
-	/// See the the implementation of [`CStr`].
-	#[inline(always)]
-	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
-		self.as_c_str().encode(output)
 	}
 }
 
@@ -395,7 +423,7 @@ impl Encode for Infallible {
 }
 
 impl Encode for IpAddr {
-	type Error = EnumEncodeError<u8, Infallible>;
+	type Error = EnumEncodeError<<u8 as Encode>::Error, Infallible>;
 
 	/// Encodes a the address with a preceding discriminant denoting the IP version of the address (i.e. `4` for IPv4 and `6` for IPv6).
 	///
@@ -479,7 +507,7 @@ impl<T: Encode> Encode for LazyLock<T> {
 #[cfg(feature = "alloc")]
 #[cfg_attr(doc, doc(cfg(feature = "alloc")))]
 impl<T: Encode> Encode for LinkedList<T> {
-	type Error = CollectionEncodeError<UsizeEncodeError, (usize, T::Error)>;
+	type Error = CollectionEncodeError<UsizeEncodeError, ItemEncodeError<usize, T::Error>>;
 
 	#[inline(always)]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
@@ -491,7 +519,7 @@ impl<T: Encode> Encode for LinkedList<T> {
 		for (i, v) in self.iter().enumerate() {
 			v
 				.encode(output)
-				.map_err(|e| CollectionEncodeError::BadItem((i, e)))?;
+				.map_err(|e| CollectionEncodeError::BadItem(ItemEncodeError { index: i, error: e }))?;
 		}
 
 		Ok(())
@@ -509,20 +537,6 @@ impl<T: Encode + ?Sized> Encode for Mutex<T> {
 			.lock()
 			.unwrap_or_else(std::sync::PoisonError::into_inner)
 			.encode(output)
-	}
-}
-
-// Especially useful for `Result<T, !>`.
-// **If** that is even needed, of course.
-#[cfg(feature = "never-type")]
-#[cfg_attr(doc, doc(cfg(feature = "never-type")))]
-impl Encode for ! {
-	type Error = Infallible;
-
-	#[inline]
-	fn encode(&self, _output: &mut Output) -> Result<(), Self::Error> {
-		// SAFETY: `!` objects can never be constructed.
-		unsafe { unreachable_unchecked() }
 	}
 }
 
@@ -551,6 +565,59 @@ impl<T: Encode> Encode for Option<T> {
 		};
 
 		Ok(())
+	}
+}
+
+#[cfg(feature = "std")]
+#[cfg_attr(doc, doc(cfg(feature = "std")))]
+impl Encode for OsStr {
+	type Error = CollectionEncodeError<UsizeEncodeError, Utf8Error>;
+
+	/// Encodes the OS-specific string as a normal string.
+	///
+	/// `OsStr` is losely defined by Rust as being superset of the standard, UTF-8 `str`.
+	///
+	/// # Errors
+	///
+	/// This implementation will yield an error if the string `self` contains any non-UTF-8 octets.
+	#[inline(always)]
+	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
+		let data = self.as_encoded_bytes();
+
+		let s = match str::from_utf8(data) {
+			Ok(s) => s,
+
+			Err(e) => {
+				let i = e.valid_up_to();
+				let c = data[i];
+
+				return Err(
+					CollectionEncodeError::BadItem(
+						Utf8Error { value: c, index: i },
+					),
+				);
+			}
+		};
+
+		if let Err(CollectionEncodeError::BadLength(e)) = s.encode(output) {
+			Err(CollectionEncodeError::BadLength(e))
+		} else {
+			Ok(())
+		}
+	}
+}
+
+#[cfg(feature = "std")]
+#[cfg_attr(doc, doc(cfg(feature = "std")))]
+impl Encode for OsString {
+	type Error = <OsStr as Encode>::Error;
+
+	/// Encodes the OS-specific string as a normal string.
+	///
+	/// See [`OsStr`]'s implementation of `Encode` for more information.
+	#[inline(always)]
+	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
+		self.as_os_str().encode(output)
 	}
 }
 
@@ -784,7 +851,7 @@ impl Encode for str {
 impl Encode for String {
 	type Error = <str as Encode>::Error;
 
-	/// See [`str`].
+	/// See [`prim@str`].
 	#[inline(always)]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		self.as_str().encode(output)
@@ -857,7 +924,7 @@ impl Encode for usize {
 	#[inline]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		let value = u16::try_from(*self)
-			.map_err(|_e| UsizeEncodeError(*self))?;
+			.map_err(|_| UsizeEncodeError(*self))?;
 
 			let Ok(_) = value.encode(output);
 		Ok(())
@@ -952,7 +1019,7 @@ macro_rules! impl_atomic {
 			/// The atomic object itself is read with the [`Relaxed`](core::sync::atomic::Ordering) ordering scheme.
 			#[inline(always)]
 			fn encode(&self, output: &mut ::oct::encode::Output) -> ::core::result::Result<(), Self::Error> {
-				use ::std::sync::atomic::Ordering;
+				use ::core::sync::atomic::Ordering;
 
 				self.load(Ordering::Relaxed).encode(output)
 			}
@@ -1101,65 +1168,65 @@ impl_non_zero!(usize);
 impl_atomic! {
 	width: "8",
 	ty: bool,
-	atomic_ty: std::sync::atomic::AtomicBool,
+	atomic_ty: core::sync::atomic::AtomicBool,
 }
 
 impl_atomic! {
 	width: "16",
 	ty: i16,
-	atomic_ty: std::sync::atomic::AtomicI16,
+	atomic_ty: core::sync::atomic::AtomicI16,
 }
 
 impl_atomic! {
 	width: "32",
 	ty: i32,
-	atomic_ty: std::sync::atomic::AtomicI32,
+	atomic_ty: core::sync::atomic::AtomicI32,
 }
 
 impl_atomic! {
 	width: "64",
 	ty: i64,
-	atomic_ty: std::sync::atomic::AtomicI64,
+	atomic_ty: core::sync::atomic::AtomicI64,
 }
 
 impl_atomic! {
 	width: "8",
 	ty: i8,
-	atomic_ty: std::sync::atomic::AtomicI8,
+	atomic_ty: core::sync::atomic::AtomicI8,
 }
 
 impl_atomic! {
 	width: "ptr",
 	ty: isize,
-	atomic_ty: std::sync::atomic::AtomicIsize,
+	atomic_ty: core::sync::atomic::AtomicIsize,
 }
 
 impl_atomic! {
 	width: "16",
 	ty: u16,
-	atomic_ty: std::sync::atomic::AtomicU16,
+	atomic_ty: core::sync::atomic::AtomicU16,
 }
 
 impl_atomic! {
 	width: "32",
 	ty: u32,
-	atomic_ty: std::sync::atomic::AtomicU32,
+	atomic_ty: core::sync::atomic::AtomicU32,
 }
 
 impl_atomic! {
 	width: "64",
 	ty: u64,
-	atomic_ty: std::sync::atomic::AtomicU64,
+	atomic_ty: core::sync::atomic::AtomicU64,
 }
 
 impl_atomic! {
 	width: "8",
 	ty: u8,
-	atomic_ty: std::sync::atomic::AtomicU8,
+	atomic_ty: core::sync::atomic::AtomicU8,
 }
 
 impl_atomic! {
 	width: "ptr",
 	ty: usize,
-	atomic_ty: std::sync::atomic::AtomicUsize,
+	atomic_ty: core::sync::atomic::AtomicUsize,
 }

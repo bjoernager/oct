@@ -11,30 +11,29 @@ use crate::decode::Decode;
 use core::convert::Infallible;
 use core::error::Error;
 use core::fmt::{self, Debug, Display, Formatter};
+use core::hint::unreachable_unchecked;
 
 /// An enumeration could not be decoded.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 #[must_use]
-pub enum EnumDecodeError<D: Decode, F> {
+pub enum EnumDecodeError<T, D, F> {
 	/// The discriminant could not be decoded.
-	InvalidDiscriminant(D::Error),
+	InvalidDiscriminant(D),
 
 	/// An otherwise valid discriminant has not been assigned.
 	///
 	/// Remember that this error does **not** indicate that the discriminant couldn't be decoded, merely that it does not match with that of any variant.
 	/// See also [`InvalidDiscriminant`](Self::InvalidDiscriminant).
-	UnassignedDiscriminant {
-		/// The unassigned discriminant value.
-		value: D
-	},
+	UnassignedDiscriminant(T),
 
 	/// A field could not be encoded.
 	BadField(F),
 }
 
-impl<D, F> Display for EnumDecodeError<D, F>
+impl<T, D, F> Display for EnumDecodeError<T, D, F>
 where
-	D: Decode<Error: Display> + Display,
+	T: Display,
+	D: Display,
 	F: Display,
 {
 	#[inline]
@@ -43,7 +42,7 @@ where
 			Self::InvalidDiscriminant(ref e)
 			=> write!(f, "discriminant could not be decoded: {e}"),
 
-			Self::UnassignedDiscriminant { ref value }
+			Self::UnassignedDiscriminant(ref value)
 			=> write!(f, "`{value}` is not an assigned discriminant for the given enumeration"),
 
 			Self::BadField(ref e)
@@ -52,9 +51,10 @@ where
 	}
 }
 
-impl<D, F> Error for EnumDecodeError<D, F>
+impl<T, D, F> Error for EnumDecodeError<T, D, F>
 where
-	D: Debug + Decode<Error: Error + 'static> + Display,
+	T: Debug + Display,
+	D: Error + 'static,
 	F: Error + 'static,
 {
 	#[inline]
@@ -69,13 +69,22 @@ where
 	}
 }
 
-impl<D, F> From<EnumDecodeError<D, F>> for Infallible
+impl<T, D, F> From<Infallible> for EnumDecodeError<T, D, F> {
+	#[inline(always)]
+	fn from(_value: Infallible) -> Self {
+		// SAFETY: `Infallible` objects can never be con-
+		// structed.
+		unsafe { unreachable_unchecked() };
+	}
+}
+
+impl<T, D, F> From<EnumDecodeError<T, D, F>> for Infallible
 where
-	D: Decode<Error: Into<Self>>,
+	T: Decode<Error: Into<Self>>,
 	F: Into<Self>,
 {
 	#[inline(always)]
-	fn from(_value: EnumDecodeError<D, F>) -> Self {
+	fn from(_value: EnumDecodeError<T, D, F>) -> Self {
 		unreachable!()
 	}
 }

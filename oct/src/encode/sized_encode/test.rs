@@ -6,10 +6,9 @@
 // can obtain one at:
 // <https://mozilla.org/MPL/2.0/>.
 
-use oct::encode::{Encode, SizedEncode};
-use std::convert::Infallible;
-use std::marker::PhantomData;
-use std::net::{
+use core::convert::Infallible;
+use core::marker::PhantomData;
+use core::net::{
 	IpAddr,
 	Ipv4Addr,
 	Ipv6Addr,
@@ -17,7 +16,8 @@ use std::net::{
 	SocketAddrV4,
 	SocketAddrV6,
 };
-use std::num::NonZero;
+use core::num::NonZero;
+use oct::encode::{Encode, SizedEncode};
 
 macro_rules! assert_encoded_size {
 	($ty:ty, $value:expr$(,)?) => {{

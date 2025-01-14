@@ -6,10 +6,10 @@
 // can obtain one at:
 // <https://mozilla.org/MPL/2.0/>.
 
+use core::fmt;
+use core::fmt::{Debug, Formatter};
 use proc_macro2::TokenStream;
 use quote::ToTokens;
-use std::fmt;
-use std::fmt::{Debug, Formatter};
 use syn::{
 	GenericParam,
 	Generics,

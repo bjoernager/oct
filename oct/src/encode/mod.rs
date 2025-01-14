@@ -85,6 +85,49 @@ use_mod!(pub sized_encode);
 ///
 /// The [`Error`](Encode::Error) type will in all cases just be `GenericEncodeError`.
 ///
+/// ## Example
+///
+/// ```rust
+/// use oct::decode::Decode;
+/// use oct::encode::Encode;
+/// use oct::slot::Slot;
+///
+/// #[derive(Debug, Decode, Encode, PartialEq)]
+/// struct Ints {
+///     value0: u8,
+///     value1: u16,
+///     value2: u32,
+///     value3: u64,
+///     value4: u128,
+/// }
+///
+/// const VALUE: Ints = Ints {
+///     value0: 0x00,
+///     value1: 0x02_01,
+///     value2: 0x06_05_04_03,
+///     value3: 0x0E_0D_0C_0B_0A_09_08_07,
+///     value4: 0x1E_1D_1C_1B_1A_19_18_17_16_15_14_13_12_11_10_0F,
+/// };
+///
+/// let mut buf = Slot::with_capacity(0x100);
+///
+/// buf.write(VALUE).unwrap();
+///
+/// assert_eq!(buf.len(), 0x1F);
+///
+/// assert_eq!(
+///     buf,
+///     [
+///         0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+///         0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+///         0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+///         0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E
+///     ].as_slice(),
+/// );
+///
+/// assert_eq!(buf.read().unwrap(), VALUE);
+/// ```
+///
 /// # Enums
 ///
 /// Enumerations encode like structures except that each variant additionally encodes a unique discriminant.
@@ -92,6 +135,8 @@ use_mod!(pub sized_encode);
 /// By default, each discriminant is assigned from the range 0 to infinite, to the extend allowed by the [`isize`] type and its encoding (as which **all** discriminants are encoded).
 /// A custom discriminant may be set instead by assigning the variant an integer constant.
 /// Unspecified discriminants then increment the previous variant's discriminant:
+///
+/// ## Example
 ///
 /// ```rust
 /// use oct::encode::Encode;
@@ -138,6 +183,17 @@ use_mod!(pub sized_encode);
 ///
 /// Unions cannot derive `Encode` due to the uncertainty of their contents.
 /// The trait should therefore be implemented manually for such types.
+///
+/// ## Example
+///
+/// ```rust compile_fail
+/// use oct::encode::Encode;
+///
+/// #[derive(Encode)]
+/// union MyUnion {
+///     my_field: u32,
+/// }
+/// ```
 #[cfg(feature = "proc-macro")]
 #[cfg_attr(doc, doc(cfg(feature = "proc-macro")))]
 #[doc(inline)]

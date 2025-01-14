@@ -28,7 +28,6 @@ use_mod!(pub length_error);
 use_mod!(pub non_zero_decode_error);
 use_mod!(pub output_error);
 use_mod!(pub ref_cell_encode_error);
-use_mod!(pub string_error);
 use_mod!(pub usize_encode_error);
 use_mod!(pub utf8_error);
 

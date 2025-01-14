@@ -6,16 +6,15 @@
 // can obtain one at:
 // <https://mozilla.org/MPL/2.0/>.
 
-use crate::PrimitiveDiscriminant;
-use crate::decode::Decode;
+use crate::{PrimDiscriminant, PrimRepr};
 use crate::error::{
 	CollectionDecodeError,
 	EnumDecodeError,
 	ItemDecodeError,
 	NonZeroDecodeError,
 	LengthError,
-	StringError,
 	SystemTimeDecodeError,
+	Utf8Error,
 };
 
 use core::convert::Infallible;
@@ -25,28 +24,25 @@ use core::hint::unreachable_unchecked;
 
 /// A generic decoding error type.
 ///
-/// The intended use of this type is by [derived](derive@Decode) implementations of [`Decode`].
+/// The intended use of this type is by [derived](derive@crate::decode::Decode) implementations of [`crate::decode::Decode`].
 /// Manual implementors are recommended to use a custom or less generic type for the sake of efficiency.
-#[derive(Debug, Eq, PartialEq)]
 #[must_use]
 #[non_exhaustive]
+#[derive(Debug, Eq, PartialEq)]
 pub enum GenericDecodeError {
 	/// A string contained a non-UTF-8 sequence.
-	BadString(StringError),
+	BadString(Utf8Error),
 
-	/// A non-null integer was null.
+	/// A non-zero integer was null.
 	NullInteger(NonZeroDecodeError),
 
-	/// A statically-sized buffer was too small.
+	/// A size-constrained buffer was too small.
 	SmallBuffer(LengthError),
 
 	/// An unassigned discriminant value was encountered.
 	///
 	/// The contained value denotes the raw, numerical value of the discriminant.
-	UnassignedDiscriminant {
-		/// The raw value of the discriminant.
-		value: u128
-	},
+	UnassignedDiscriminant(PrimDiscriminant),
 
 	/// The [`SystemTime`](std::time::SystemTime) type was too narrow.
 	#[cfg(feature = "std")]
@@ -67,7 +63,7 @@ impl Display for GenericDecodeError {
 			Self::SmallBuffer(ref e)
 			=> write!(f, "{e}"),
 
-			Self::UnassignedDiscriminant { value }
+			Self::UnassignedDiscriminant(value)
 			=> write!(f, "discriminant value `{value:#X} has not been assigned"),
 
 			#[cfg(feature = "std")]
@@ -112,19 +108,20 @@ where
 	}
 }
 
-impl<D, F> From<EnumDecodeError<D, F>> for GenericDecodeError
+impl<T, D, F> From<EnumDecodeError<T, D, F>> for GenericDecodeError
 where
-	D: Decode<Error: Into<Self>> + PrimitiveDiscriminant,
+	T: PrimRepr,
+	D: Into<Self>,
 	F: Into<Self>,
 {
 	#[inline(always)]
-	fn from(value: EnumDecodeError<D, F>) -> Self {
+	fn from(value: EnumDecodeError<T, D, F>) -> Self {
 		use EnumDecodeError as Error;
 
 		match value {
 			Error::InvalidDiscriminant(e) => e.into(),
 
-			Error::UnassignedDiscriminant { value } => Self::UnassignedDiscriminant { value: value.to_u128() },
+			Error::UnassignedDiscriminant(value) => Self::UnassignedDiscriminant(value.into_prim_discriminant()),
 
 			Error::BadField(e) => e.into(),
 		}
@@ -161,18 +158,18 @@ impl From<LengthError> for GenericDecodeError {
 	}
 }
 
-impl From<StringError> for GenericDecodeError {
-	#[inline(always)]
-	fn from(value: StringError) -> Self {
-		Self::BadString(value)
-	}
-}
-
 #[cfg(feature = "std")]
 #[cfg_attr(doc, doc(cfg(feature = "std")))]
 impl From<SystemTimeDecodeError> for GenericDecodeError {
 	#[inline(always)]
 	fn from(value: SystemTimeDecodeError) -> Self {
 		Self::NarrowSystemTime(value)
+	}
+}
+
+impl From<Utf8Error> for GenericDecodeError {
+	#[inline(always)]
+	fn from(value: Utf8Error) -> Self {
+		Self::BadString(value)
 	}
 }

@@ -6,14 +6,17 @@
 // can obtain one at:
 // <https://mozilla.org/MPL/2.0/>.
 
+#[cfg(test)]
+mod test;
+
 use crate::error::OutputError;
 
 use core::borrow::Borrow;
+use core::fmt::{self, Debug, Formatter};
 use core::ptr::copy_nonoverlapping;
 use core::slice;
 
 /// Byte stream suitable for writing.
-#[derive(Debug, Eq)]
 pub struct Output<'a> {
 	buf: &'a mut [u8],
 	pos: usize,
@@ -57,25 +60,6 @@ impl<'a> Output<'a> {
 		Ok(())
 	}
 
-	/// Gets a pointer to the first byte of the output stream.
-	#[inline(always)]
-	#[must_use]
-	pub const fn as_ptr(&self) -> *const u8 {
-		self.buf.as_ptr()
-	}
-
-	/// Gets a slice of the written bytes in the output stream.
-	#[inline(always)]
-	#[must_use]
-	pub const fn as_slice(&self) -> &[u8] {
-		unsafe {
-			let ptr = self.as_ptr();
-			let len = self.position();
-
-			slice::from_raw_parts(ptr, len)
-		}
-	}
-
 	/// Retrieves the maximum capacity of the output stream.
 	#[inline(always)]
 	#[must_use]
@@ -98,6 +82,25 @@ impl<'a> Output<'a> {
 	pub const fn position(&self) -> usize {
 		self.pos
 	}
+
+	/// Gets a pointer to the first byte of the output stream.
+	#[inline(always)]
+	#[must_use]
+	pub const fn as_ptr(&self) -> *const u8 {
+		self.buf.as_ptr()
+	}
+
+	/// Gets a slice of the written bytes.
+	#[inline(always)]
+	#[must_use]
+	pub const fn as_slice(&self) -> &[u8] {
+		unsafe {
+			let ptr = self.as_ptr();
+			let len = self.position();
+
+			slice::from_raw_parts(ptr, len)
+		}
+	}
 }
 
 impl AsRef<[u8]> for Output<'_> {
@@ -113,6 +116,15 @@ impl Borrow<[u8]> for Output<'_> {
 		self.as_slice()
 	}
 }
+
+impl Debug for Output<'_> {
+	#[inline(always)]
+	fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+		Debug::fmt(self.as_slice(), f)
+	}
+}
+
+impl Eq for Output<'_> { }
 
 impl PartialEq for Output<'_> {
 	#[inline(always)]
@@ -131,13 +143,6 @@ impl PartialEq<[u8]> for Output<'_> {
 impl PartialEq<&[u8]> for Output<'_> {
 	#[inline(always)]
 	fn eq(&self, other: &&[u8]) -> bool {
-		self.as_slice() == *other
-	}
-}
-
-impl PartialEq<&mut [u8]> for Output<'_> {
-	#[inline(always)]
-	fn eq(&self, other: &&mut [u8]) -> bool {
 		self.as_slice() == *other
 	}
 }

@@ -7,7 +7,7 @@
 // <https://mozilla.org/MPL/2.0/>.
 
 #[cfg(test)]
-mod tests;
+mod test;
 
 use crate::decode::{Decode, Input};
 use crate::encode::{Encode, Output, SizedEncode};
@@ -93,7 +93,7 @@ impl<T> Slot<T> {
 		let buf = {
 			let buf = ptr::slice_from_raw_parts_mut(ptr, cap);
 
-			Box::from_raw(buf)
+			unsafe { Box::from_raw(buf) }
 		};
 
 		Self {

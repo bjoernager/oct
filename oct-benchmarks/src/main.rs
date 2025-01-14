@@ -20,10 +20,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use core::array;
+use core::num::NonZero;
 use rand::random;
 use rand::distributions::{Distribution, Standard};
-use std::array;
-use std::num::NonZero;
 use std::time::Instant;
 use zerocopy::{Immutable, IntoBytes};
 
@@ -43,7 +43,8 @@ macro_rules! benchmark {
 			postcard: $postcard_op:block$(,)?
 		}$(,)?)+
 	 } => {{
-		use ::std::{concat, eprint, eprintln, stringify};
+		use ::core::{concat, stringify};
+		use ::std::{eprint, eprintln};
 
 		macro_rules! time {
 			{ $op: block } => {{
@@ -367,6 +368,53 @@ fn main() {
 
 				for _ in 0x0..VALUE_COUNT {
 					postcard::to_io(&random::<u128>(), &mut buf).unwrap();
+				}
+			}
+		}
+
+		encode_char: {
+			bincode: {
+				use bincode::serialize_into;
+
+				const ITEM_SIZE: usize = size_of::<char>();
+
+				let mut buf = vec![0x00; ITEM_SIZE * VALUE_COUNT];
+
+				for _ in 0x0..VALUE_COUNT {
+					serialize_into(&mut buf, &random::<char>()).unwrap();
+				}
+			}
+
+			borsh: {
+				const ITEM_SIZE: usize = size_of::<char>();
+
+				let mut buf = vec![0x00; ITEM_SIZE * VALUE_COUNT];
+
+				for _ in 0x0..VALUE_COUNT {
+					borsh::to_writer::<u32, _>(&mut buf, &random::<char>().into()).unwrap();
+				}
+			}
+
+			oct: {
+				use oct::encode::{Encode, Output, SizedEncode};
+
+				const ITEM_SIZE: usize = char::MAX_ENCODED_SIZE;
+
+				let mut buf = vec![0x00; ITEM_SIZE * VALUE_COUNT].into_boxed_slice();
+				let mut stream = Output::new(&mut buf);
+
+				for _ in 0x0..VALUE_COUNT {
+					random::<char>().encode(&mut stream).unwrap();
+				}
+			}
+
+			postcard: {
+				const ITEM_SIZE: usize = size_of::<char>();
+
+				let mut buf = vec![0x00; ITEM_SIZE * VALUE_COUNT];
+
+				for _ in 0x0..VALUE_COUNT {
+					postcard::to_io(&random::<char>(), &mut buf).unwrap();
 				}
 			}
 		}

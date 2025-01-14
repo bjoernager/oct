@@ -9,12 +9,13 @@
 use core::convert::Infallible;
 use core::error::Error;
 use core::fmt::{self, Display, Formatter};
+use core::hint::unreachable_unchecked;
 
 /// A collection could not be decoded.
 ///
 /// This type is intended as a partially-generic decode error for collections.
 /// It supports denoting an error for when the collection's length is invalid -- see the [`BadLength`](Self::BadLength) variant -- and when an element is invalid -- see the [`Item`](Self::BadItem)) variant.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 #[must_use]
 pub enum CollectionDecodeError<L, I> {
 	/// The collection length could not be decoded or was invalid.
@@ -60,6 +61,15 @@ where
 
 			Self::BadItem(ref e) => Some(e),
 		}
+	}
+}
+
+impl<L, I> From<Infallible> for CollectionDecodeError<L, I> {
+	#[inline(always)]
+	fn from(_value: Infallible) -> Self {
+		// SAFETY: `Infallible` objects can never be con-
+		// structed.
+		unsafe { unreachable_unchecked() };
 	}
 }
 
