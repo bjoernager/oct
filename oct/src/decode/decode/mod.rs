@@ -68,6 +68,13 @@ use {
 // Should we require `Encode` for `Decode`?
 
 /// Denotes a type capable of being decoded.
+///
+/// This trait can be derived for custom types using the [`Decode`](derive@crate::decode::Decode) derive macro.
+///
+/// Do remember that this macro assumes that the [`Encode`](crate::encode::Encode) trait has **not** been manually implemented (i.e. it must either be not implemented or derived).
+/// Breaking this promise is a logic error and can lead to failed decodings.
+///
+/// *See also the [`decode`](crate::decode) module's documentation on how to use decodings.*
 #[doc(alias("Deserialise", "Deserialize"))]
 pub trait Decode: Sized {
 	/// The type returned in case of error.

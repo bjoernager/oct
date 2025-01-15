@@ -3,6 +3,12 @@
 This is the changelog of [Oct](https://crates.io/crates/oct/).
 See `README.md` for more information.
 
+## 0.16.1
+
+* Update readme
+* Update docs
+* Update lints
+
 ## 0.16.0
 
 * Reimplement `Decode` for `alloc::vec::Vec`, `alloc::string::String`, `CString`, `LinkedList`, `HashMap`, and `HashSet`

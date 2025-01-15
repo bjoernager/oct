@@ -77,6 +77,8 @@ use {
 ///
 /// If all possible encodings have a known, maximum size, then the [`SizedEncode`](crate::encode::SizedEncode) trait should be considered as well.
 ///
+/// *See also the [`encode`](crate::encode) module's documentation on how to use encodings.*
+///
 /// # Examples
 ///
 /// A manual implementation of `Encode`:

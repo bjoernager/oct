@@ -219,7 +219,7 @@ fn main() {
 	println!();
 	println!("When every benchmark has concluded, the total run time and vps is listed for");
 	println!("each crate. A percantage additionally compares the run time between the listed");
-	println!("crate and oct (which should always be c. `0%` for oct itself). DO NOTE THAT");
+	println!("crate and Oct (which should always be c. `0%` for oct itself). DO NOTE THAT");
 	println!("THESE FINAL RESULTS INDICATE A NON-WEIGHTED AVERAGE ACROSS BENCHMARKS. It can");
 	println!("therefore be skewed relative to real-world performance by the similarity of some");
 	println!("benchmarks.");

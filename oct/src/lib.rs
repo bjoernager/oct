@@ -235,6 +235,9 @@ extern crate alloc;
 #[cfg(feature = "std")]
 extern crate std;
 
+/// Includes a module and imports it contents.
+///
+/// The provided visibility denotes the visibility of **all** imported items.
 macro_rules! use_mod {
 	($vis:vis $name:ident$(,)?) => {
 		mod $name;

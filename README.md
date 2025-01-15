@@ -46,8 +46,8 @@ Do feel free to conduct your own tests of Oct.
 
 ## Data model
 
-Primitives encode losslessly by default, although [`usize`] and [`isize`] are the exception to this.
-Due to their machine-dependent representation, these are truncated to the smallest subset of values guaranteed by Rust, with this equating to a cast to [`u16`] or [`i16`], respectively.
+Primitives encode losslessly by default, although `usize` and `isize` are the exception to this.
+Due to their machine-dependent representation, these are truncated to the smallest subset of values guaranteed by Rust, with this equating to a cast to `u16` or `i16`, respectively.
 
 Numerical types in general (including `char`) are encoded as little endian (and **not** ["network order"](https://en.wikipedia.org/wiki/Endianness#Networking) as is the norm in TCP/UDP/IP).
 It is recommended for implementors of custom types to adhere to this convention as well.
@@ -61,7 +61,7 @@ It may therefore be undesired to store encodings long-term.
 
 This crate revolves around the `Encode` and `Decode` traits, both of which handle conversions to and from byte streams.
 
-These traits are already implemented by Oct for a large set of the standard types, such as [`Option`] and [`Mutex`](std::sync::Mutex).
+These traits are already implemented by Oct for a large set of the standard types, such as `Option` and `Mutex`.
 Some [features](#feature-flags) enable an extended set of implementations that are locked behind unstable feature gates or other crates.
 
 The following is an example of a UDP server/client for geographic data:
@@ -96,8 +96,8 @@ enum Request {
 }
 
 // Server-to-client message:
-#[derive(Debug, Decode, Encode, PartialEq, SizedEncode)]
 #[non_exhaustive]
+#[derive(Debug, Decode, Encode, PartialEq, SizedEncode)]
 enum Response {
     AtmosphericHumidity(f64),
     AtmosphericPressure(f64), // Pascal
@@ -181,8 +181,8 @@ Oct defines the following, default features:
 
 The following features can additionally be enabled for support with nightly-only constructs:
 
-* `f128`: Enable implementations for the [`f128`] type
-* `f16`: Enable implementations for the [`f16`] type
+* `f128`: Enable implementations for the `f128` type
+* `f16`: Enable implementations for the `f16` type
 
 ## Documentation
 
