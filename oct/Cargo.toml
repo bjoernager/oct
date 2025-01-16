@@ -8,7 +8,7 @@
 
 [package]
 name          = "oct"
-version       = "0.16.1"
+version       = "0.16.2"
 edition       = "2021"
 rust-version  = "1.83"
 description   = "Octonary transcoder."

@@ -3,6 +3,13 @@
 This is the changelog of [Oct](https://crates.io/crates/oct/).
 See `README.md` for more information.
 
+## 0.16.2
+
+* Update repository link
+* Clean up code
+* Fix error bounds on `Decode` for `HashMap`
+* Fix error bounds on `Encode` for `(T0, ..)`
+
 ## 0.16.1
 
 * Update readme

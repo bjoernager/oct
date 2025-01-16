@@ -970,23 +970,29 @@ macro_rules! impl_numeric {
 
 macro_rules! impl_tuple {
 	{
-		$($captures:ident: $tys:ident),+$(,)?
+		$capture:ident: $ty:ident,
+		$($extra_captures:ident: $extra_tys:ident),*$(,)?
 	} => {
 		#[doc(hidden)]
-		impl<$($tys, )* E> ::oct::encode::Encode for ($($tys, )*)
+		impl<$ty, $($extra_tys, )* E> ::oct::encode::Encode for ($ty, $($extra_tys, )*)
 		where
-			$($tys: Encode<Error = E>, )* {
+			$ty: ::oct::encode::Encode<Error = E>,
+			$($extra_tys: ::oct::encode::Encode<Error: ::core::convert::Into<E>>, )*
+		{
 			type Error = E;
 
 			#[inline(always)]
 			fn encode(&self, output: &mut ::oct::encode::Output) -> ::core::result::Result<(), Self::Error> {
-				let ($(ref $captures, )*) = *self;
+				let (ref $capture, $(ref $extra_captures, )*) = *self;
+
+				<$ty as ::oct::encode::Encode>::encode($capture, output)?;
 
 				$(
-					$captures.encode(output)?;
+					$extra_captures.encode(output)
+						.map_err(::core::convert::Into::<E>::into)?;
 				)*
 
-				Ok(())
+				::core::result::Result::Ok(())
 			}
 		}
 	};

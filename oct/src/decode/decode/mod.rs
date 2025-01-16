@@ -10,6 +10,7 @@
 mod test;
 
 use crate::decode::{DecodeBorrowed, Input};
+use crate::encode::SizedEncode;
 use crate::error::{
 	CharDecodeError,
 	CollectionDecodeError,
@@ -321,7 +322,7 @@ impl Decode for f128 {
 
 	#[inline]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
-		let mut data = [Default::default(); <Self as oct::encode::SizedEncode>::MAX_ENCODED_SIZE];
+		let mut data = [Default::default(); <Self as SizedEncode>::MAX_ENCODED_SIZE];
 		input.read_into(&mut data).unwrap();
 
 		let this = Self::from_le_bytes(data);
@@ -336,7 +337,7 @@ impl Decode for f16 {
 
 	#[inline]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
-		let mut data = [Default::default(); <Self as oct::encode::SizedEncode>::MAX_ENCODED_SIZE];
+		let mut data = [Default::default(); <Self as SizedEncode>::MAX_ENCODED_SIZE];
 		input.read_into(&mut data).unwrap();
 
 		let this = Self::from_le_bytes(data);
@@ -349,7 +350,7 @@ impl Decode for f16 {
 impl<K, V, S, E> Decode for HashMap<K, V, S>
 where
 	K: Decode<Error = E> + Eq + Hash,
-	V: Decode<Error = E>,
+	V: Decode<Error: Into<E>>,
 	S: BuildHasher + Default,
 {
 	type Error = CollectionDecodeError<Infallible, ItemDecodeError<usize, E>>;
@@ -361,11 +362,11 @@ where
 		let mut this = Self::with_capacity_and_hasher(len, Default::default());
 
 		for i in 0x0..len {
-			let key= Decode::decode(input)
+			let key = K::decode(input)
 				.map_err(|e| CollectionDecodeError::BadItem(ItemDecodeError { index: i, error: e }))?;
 
-			let value = Decode::decode(input)
-				.map_err(|e| CollectionDecodeError::BadItem(ItemDecodeError { index: i, error: e }))?;
+			let value = V::decode(input)
+				.map_err(|e| CollectionDecodeError::BadItem(ItemDecodeError { index: i, error: e.into() }))?;
 
 			this.insert(key, value);
 		}
@@ -883,15 +884,16 @@ macro_rules! impl_tuple {
 		#[doc(hidden)]
 		impl<$ty, $($extra_tys, )* E> ::oct::decode::Decode for ($ty, $($extra_tys, )*)
 		where
-			$ty: Decode<Error = E>,
-			$($extra_tys: Decode<Error: Into<E>>, )*
+			$ty: ::oct::decode::Decode<Error = E>,
+			$($extra_tys: ::oct::decode::Decode<Error: ::core::convert::Into<E>>, )*
 		{
 			type Error = E;
 
 			#[inline(always)]
 			fn decode(input: &mut ::oct::decode::Input) -> ::core::result::Result<Self, Self::Error> {
 				let this = (
-					<T0 as ::oct::decode::Decode>::decode(input)?,
+					<$ty as ::oct::decode::Decode>::decode(input)?,
+
 					$(
 						<$extra_tys as ::oct::decode::Decode>::decode(input)
 							.map_err(::core::convert::Into::<E>::into)?,
