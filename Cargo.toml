@@ -5,7 +5,7 @@ resolver = "2"
 [workspace.package]
 authors    = ["Gabriel Bjørnager Jensen"]
 readme     = "README.md"
-repository = "ssh://git@ssh.mandelbrot.dk:oct"
+repository = "https://gitlab.com/bjoernager/oct/"
 keywords   = ["encoding", "io", "network", "no-std", "serialization"]
 categories = ["encoding", "network-programming"]
 

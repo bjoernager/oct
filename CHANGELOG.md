@@ -3,6 +3,10 @@
 This is the changelog of [Oct](https://crates.io/crates/oct/).
 See `README.md` for more information.
 
+## 0.16.3
+
+* Update repository link (SSH is not permitted on `crates.io`)
+
 ## 0.16.2
 
 * Update repository link
