@@ -8,13 +8,13 @@
 
 [package]
 name          = "oct-macros"
-version       = "0.16.3"
 edition       = "2021"
 description   = "Octonary transcoder. Procedural macros."
 documentation = "https://docs.rs/oct-macros/"
 homepage      = "https://crates.io/crates/oct-macros/"
 license       = "MPL-2.0"
 
+version.workspace     = true
 authors.workspace     = true
 readme.workspace      = true
 repository.workspace  = true

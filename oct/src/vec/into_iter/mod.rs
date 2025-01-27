@@ -29,6 +29,7 @@ pub struct IntoIter<T, const N: usize> {
 impl<T, const N: usize> IntoIter<T, N> {
 	/// Constructs a new, size-constrained iterator.
 	#[inline(always)]
+	#[track_caller]
 	pub(crate) const unsafe fn new(buf: [MaybeUninit<T>; N], len: usize) -> Self {
 		debug_assert!(len <= N, "cannot construct iterator longer than its capacity");
 

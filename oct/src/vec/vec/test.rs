@@ -8,6 +8,7 @@
 // can obtain one at:
 // <https://mozilla.org/MPL/2.0/>.
 
+use oct::vec;
 use oct::vec::Vec;
 
 #[test]
@@ -32,4 +33,12 @@ fn test_vec_from_iter() {
 		v,
 		[0, 708, 826, 19, 572, 919, 78, 431],
 	);
+}
+
+#[test]
+fn test_vec_macro() {
+	let v0: Vec<u8, 0x4> = vec![0xEF; 0x3];
+	let v1: Vec<u8, 0x4> = vec![0xEF, 0xEF, 0xEF];
+
+	assert_eq!(v0, v1);
 }

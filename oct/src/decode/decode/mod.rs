@@ -10,7 +10,6 @@
 mod test;
 
 use crate::decode::{DecodeBorrowed, Input};
-use crate::encode::SizedEncode;
 use crate::error::{
 	CharDecodeError,
 	CollectionDecodeError,
@@ -55,6 +54,9 @@ use {
 	alloc::rc::Rc,
 	alloc::sync::Arc,
 };
+
+#[cfg(any(feature = "f128", feature = "f16"))]
+use crate::oct::encode::SizedEncode;
 
 #[cfg(feature = "std")]
 use {

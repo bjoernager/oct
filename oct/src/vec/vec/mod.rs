@@ -69,6 +69,7 @@ impl<T, const N: usize> Vec<T, N> {
 	///
 	/// If an array of `N` elements cannot contain the entirety of `data`, then this constructor will return an error.
 	#[inline(always)]
+	#[track_caller]
 	pub const fn new(data: &[T]) -> Result<Self, LengthError>
 	where
 		T: Copy,
@@ -93,6 +94,7 @@ impl<T, const N: usize> Vec<T, N> {
 	///
 	/// The entirety of `data` must be able to fit into an array of `N` elements.
 	#[inline(always)]
+	#[track_caller]
 	pub const unsafe fn new_unchecked(data: &[T]) -> Self
 	where
 		T: Copy,
@@ -125,6 +127,7 @@ impl<T, const N: usize> Vec<T, N> {
 	/// If any of these requirements are violated, behaviour is undefined.
 	#[inline(always)]
 	#[must_use]
+	#[track_caller]
 	pub const unsafe fn from_raw_parts(buf: [MaybeUninit<T>; N], len: usize) -> Self {
 		debug_assert!(len <= N, "cannot construct vector longer than its capacity");
 
@@ -137,6 +140,7 @@ impl<T, const N: usize> Vec<T, N> {
 	///
 	/// If `self` cannot contain the entirety of `data`, then this method will panic.
 	#[inline]
+	#[track_caller]
 	pub const fn copy_from_slice(&mut self, data: &[T])
 	where
 		T: Copy,
@@ -222,6 +226,7 @@ impl<T, const N: usize> Vec<T, N> {
 	/// It is only valid to enlarge vectors if `T` supports being in a purely uninitialised state.
 	/// Such is permitted with e.g. [`MaybeUninit`].
 	#[inline(always)]
+	#[track_caller]
 	pub const fn set_len(&mut self, len: usize) {
 		assert!(len <= self.len(), "cannot extend length of vector");
 
@@ -242,6 +247,7 @@ impl<T, const N: usize> Vec<T, N> {
 	/// It is only valid to enlarge vectors if `T` supports being in a purely uninitialised state
 	/// Such is permitted by e.g. [`MaybeUninit`].
 	#[inline(always)]
+	#[track_caller]
 	pub const unsafe fn set_len_unchecked(&mut self, len: usize) {
 		debug_assert!(len <= N, "cannot set length past bounds");
 
@@ -680,4 +686,32 @@ impl<T: PartialEq<U>, U, const N: usize> PartialEq<Vec<U, N>> for alloc::vec::Ve
 	fn eq(&self, other: &Vec<U, N>) -> bool {
 		self.as_slice() == other.as_slice()
 	}
+}
+
+// NOTE: This function is used by the `vec` macro
+// to circumvent itself using code which may be
+// forbidden by the macro user's lints. This func-
+// tion is sound, but please do not call it direct-
+// ly. It is not a breaking change if it is re-
+// moved.
+#[doc(hidden)]
+#[inline(always)]
+#[must_use]
+#[track_caller]
+pub const fn __vec<T, const N: usize, const M: usize>(data: [T; N]) -> Vec<T, M> {
+	assert!(N <= M, "cannot construct vector from literal that is longer");
+
+	let data = ManuallyDrop::new(data);
+
+	let mut buf = [const { MaybeUninit::uninit() }; M];
+	let     len = N;
+
+	unsafe {
+		let src = (&raw const data).cast();
+		let dst = buf.as_mut_ptr();
+
+		copy_nonoverlapping(src, dst, len);
+	}
+
+	unsafe { Vec::from_raw_parts(buf, len) }
 }

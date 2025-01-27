@@ -3,6 +3,18 @@
 This is the changelog of [Oct](https://crates.io/crates/oct/).
 See `README.md` for more information.
 
+## 0.17.0
+
+* Update signature for `Slot::write`
+* Remove `Slot::is_full`
+* Specify version in root Cargo manifest
+* Update docs
+* Clean up code
+* Add `str` and `vec` macro
+* Add `track_caller` attribute to some functions
+* Add `str_macro` and `vec_macro` tests
+* Add `peek` and `peek_into` methods to `Input`
+
 ## 0.16.3
 
 * Update repository link (SSH is not permitted on `crates.io`)

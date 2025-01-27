@@ -23,7 +23,7 @@ fn test_buf_write_read() {
 		}};
 	}
 
-	buf.write('\u{1F44D}').unwrap();
+	buf.write(&'\u{1F44D}').unwrap();
 	assert_eq!(buf, [0x4D, 0xF4, 0x01, 0x00].as_slice());
 
 	buf.copy_from_slice(&[0x00, 0xD8, 0x00, 0x00]);

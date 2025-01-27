@@ -39,20 +39,10 @@ impl<'a> Input<'a> {
 	/// If the requested amount of bytes could not be exactly read, then this method will return an error.
 	#[inline]
 	pub const fn read(&mut self, count: usize) -> Result<&'a [u8], InputError> {
-		let remaining = self.buf.len() - self.pos;
+		let data = match self.peek(count) {
+			Ok(data) => data,
 
-		if remaining < count {
-			return Err(InputError {
-				capacity: self.buf.len(),
-				position: self.pos,
-				count,
-			});
-		}
-
-		let data = unsafe {
-			let ptr = self.buf.as_ptr().add(self.pos);
-
-			slice::from_raw_parts(ptr, count)
+			Err(e) => return Err(e),
 		};
 
 		self.pos += count;
@@ -69,6 +59,54 @@ impl<'a> Input<'a> {
 	/// If the provided buffer could not be completely filled, then this method will return an error.
 	#[inline]
 	pub const fn read_into(&mut self, buf: &mut [u8]) -> Result<(), InputError> {
+		if let Err(e) = self.peek_into(buf) {
+			return Err(e);
+		}
+
+		self.pos += buf.len();
+
+		Ok(())
+	}
+
+	/// Reads bytes from the stream without moving the cursor.
+	///
+	/// This method may be preferred over [`read`](Self::read) if the same bytes may be needed more than once.
+	/// It may additionally be preferred over [`peek_into`](Self::peek_into) if the read data aren't directly needed, such as if an iterator is applied anyway to map the data.
+	///
+	/// # Errors
+	///
+	/// If the requested amount of bytes could not be exactly read, then this method will return an error.
+	#[inline]
+	pub const fn peek(&mut self, count: usize) -> Result<&'a [u8], InputError> {
+		let remaining = self.buf.len() - self.pos;
+
+		if remaining < count {
+			return Err(InputError {
+				capacity: self.buf.len(),
+				position: self.pos,
+				count,
+			});
+		}
+
+		let data = unsafe {
+			let ptr = self.buf.as_ptr().add(self.pos);
+
+			slice::from_raw_parts(ptr, count)
+		};
+
+		Ok(data)
+	}
+
+	/// Reads bytes from the stream into a predefined buffer without moving the cursor.
+	///
+	/// This method may be preferred over [`read_into`](Self::read_into) if the same bytes may be needed more than once.
+	/// It may additionally be preferred over [`read`](Self::read) if the read data are *directly* needed, e.g. if all required transformations can be done in-place.
+	///
+	/// # Errors
+	///
+	/// If the provided buffer could not be completely filled, then this method will return an error.
+	#[inline]
+	pub const fn peek_into(&mut self, buf: &mut [u8]) -> Result<(), InputError> {
 		let count     = buf.len();
 		let remaining = self.remaining();
 
@@ -86,8 +124,6 @@ impl<'a> Input<'a> {
 
 			copy_nonoverlapping(src, dst, count);
 		}
-
-		self.pos += count;
 
 		Ok(())
 	}

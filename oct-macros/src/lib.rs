@@ -13,6 +13,10 @@
 // For use in macros:
 extern crate self as oct_macros;
 
+use proc_macro::TokenStream;
+use quote::quote;
+use syn::{parse2, parse_macro_input, DeriveInput};
+
 macro_rules! use_mod {
 	($vis:vis $name:ident) => {
 		mod $name;
@@ -26,59 +30,49 @@ use_mod!(generic_name);
 use_mod!(impl_derive_macro);
 use_mod!(repr);
 
-mod impls;
-
-use proc_macro::TokenStream;
-use quote::quote;
-use syn::{DeriveInput, parse2};
+mod derive_impl;
 
 #[proc_macro_derive(Decode)]
 pub fn derive_decode(input: TokenStream) -> TokenStream {
-	let input = syn::parse_macro_input!(input as DeriveInput);
+	let input = parse_macro_input!(input as DeriveInput);
 
 	let output = impl_derive_macro(
 		input,
 		parse2(quote! { ::oct::decode::Decode }).unwrap(),
 		None,
-		impls::decode_struct,
-		impls::decode_enum,
+		derive_impl::decode_struct,
+		derive_impl::decode_enum,
 	);
-
-	//panic!("{output}");
 
 	output.into()
 }
 
 #[proc_macro_derive(Encode)]
 pub fn derive_encode(input: TokenStream) -> TokenStream {
-	let input = syn::parse_macro_input!(input as DeriveInput);
+	let input = parse_macro_input!(input as DeriveInput);
 
 	let output = impl_derive_macro(
 		input,
 		parse2(quote! { ::oct::encode::Encode }).unwrap(),
 		None,
-		impls::encode_struct,
-		impls::encode_enum,
+		derive_impl::encode_struct,
+		derive_impl::encode_enum,
 	);
-
-	//panic!("{output}");
 
 	output.into()
 }
 
 #[proc_macro_derive(SizedEncode)]
 pub fn derive_sized_encode(input: TokenStream) -> TokenStream {
-	let input = syn::parse_macro_input!(input as DeriveInput);
+	let input = parse_macro_input!(input as DeriveInput);
 
 	let output = impl_derive_macro(
 		input,
 		parse2(quote! { ::oct::encode::SizedEncode }).unwrap(),
 		None,
-		impls::sized_encode_struct,
-		impls::sized_encode_enum,
+		derive_impl::sized_encode_struct,
+		derive_impl::sized_encode_enum,
 	);
-
-	//panic!("{output}");
 
 	output.into()
 }

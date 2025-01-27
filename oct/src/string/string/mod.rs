@@ -80,6 +80,7 @@ impl<const N: usize> String<N> {
 	///
 	/// If the internal buffer cannot contain the entirety of `s`, then an error is returned.
 	#[inline]
+	#[track_caller]
 	pub const fn new(s: &str) -> Result<Self, LengthError> {
 		let len = s.len();
 		if len > N {
@@ -112,6 +113,7 @@ impl<const N: usize> String<N> {
 	///
 	/// If the internal buffer cannot contain the entirety of `s`, then the call to this constructor will result in undefined behaviour.
 	#[inline]
+	#[track_caller]
 	pub const unsafe fn new_unchecked(s: &str) -> Self {
 		let     len = s.len();
 		let mut buf = [0x00; N];
@@ -140,6 +142,7 @@ impl<const N: usize> String<N> {
 	/// Each byte value must be a valid UTF-8 code point.
 	/// If an invalid sequence is found, then this function will return an error.
 	#[inline]
+	#[track_caller]
 	pub const fn from_utf8(v: Vec<u8, N>) -> Result<Self, (Utf8Error, Vec<u8, N>)> {
 		if let Err(e) = str::from_utf8(v.as_slice()) {
 			let i = e.valid_up_to();
@@ -163,6 +166,7 @@ impl<const N: usize> String<N> {
 	/// The behaviour of a programme that passes invalid values to this function is undefined.
 	#[inline]
 	#[must_use]
+	#[track_caller]
 	pub const unsafe fn from_utf8_unchecked(v: Vec<u8, N>) -> Self {
 		let (mut buf, len) = v.into_raw_parts();
 
@@ -196,6 +200,7 @@ impl<const N: usize> String<N> {
 	/// If any of these requirements are violated, behaviour is undefined.
 	#[inline(always)]
 	#[must_use]
+	#[track_caller]
 	pub const unsafe fn from_raw_parts(buf: [u8; N], len: usize) -> Self {
 		debug_assert!(len <= N, "cannot construct string that is longer than its capacity");
 
@@ -651,4 +656,20 @@ impl<const N: usize> PartialEq<String<N>> for alloc::string::String {
 	fn eq(&self, other: &String<N>) -> bool {
 		self.as_str() == other.as_str()
 	}
+}
+
+// NOTE: This function is used by the `str` macro
+// to circumvent itself using code which may be
+// forbidden by the macro user's lints. This func-
+// tion is sound, but please do not call it direct-
+// ly. It is not a breaking change if it is re-
+// moved.
+#[doc(hidden)]
+#[inline(always)]
+#[must_use]
+#[track_caller]
+pub const fn __str<const N: usize>(s: &'static str) -> String<N> {
+	assert!(s.len() <= N, "cannot construct string from literal that is longer");
+
+	unsafe { String::new_unchecked(s) }
 }

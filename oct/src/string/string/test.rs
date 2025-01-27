@@ -7,9 +7,21 @@
 // <https://mozilla.org/MPL/2.0/>.
 
 use core::cmp::Ordering;
+use oct::str;
 use oct::error::Utf8Error;
 use oct::string::String;
 use oct::vec::Vec;
+
+#[test]
+fn test_str_macro() {
+	let s0: String<0x3> = str!["Oct"; 0x3];
+	let s1: String<0x3> = str!["Oct"; _];
+	let s2: String<0x3> = str!["Oct"];
+
+	assert_eq!(s0, s1);
+	assert_eq!(s0, s2);
+	assert_eq!(s1, s2);
+}
 
 #[test]
 fn test_string() {
@@ -19,9 +31,9 @@ fn test_string() {
 
 #[test]
 fn test_string_size() {
-	let s0 = String::<0x0C>::new("Hello there!").unwrap();
-	let s1 = String::<0x12>::new("MEIN_GRO\u{1E9E}_GOTT").unwrap();
-	let s2 = String::<0x05>::new("Hello").unwrap();
+	let s0 = str!["Hello there!";          0x0C];
+	let s1 = str!["MEIN_GRO\u{1E9E}_GOTT"; 0x12];
+	let s2 = str!["Hello";                 0x05];
 
 	assert_eq!(s0.partial_cmp(&s0), Some(Ordering::Equal));
 	assert_eq!(s0.partial_cmp(&s1), Some(Ordering::Less));

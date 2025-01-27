@@ -578,6 +578,7 @@ impl Encode for OsStr {
 	/// Encodes the OS-specific string as a normal string.
 	///
 	/// `OsStr` is losely defined by Rust as being superset of the standard, UTF-8 `str`.
+	/// In other words, all `str` object can directly be translated to `OsStr`, but the inverse operation is not necessarily possible.
 	///
 	/// # Errors
 	///

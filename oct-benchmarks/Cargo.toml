@@ -22,17 +22,17 @@
 
 [package]
 name        = "oct-benchmarks"
-version     = "0.16.3"
 edition     = "2021"
 description = "Oct benchmarks."
 license     = "MIT"
 
+version.workspace    = true
 authors.workspace    = true
 readme.workspace     = true
 repository.workspace = true
 
 [dependencies]
-oct = { path = "../oct", version = "0.16.0", features = ["proc-macro"]}
+oct = { path = "../oct", version = "0.17.0", features = ["proc-macro"]}
 
 bincode  = "1.3.0"
 rand     = "0.8.0"

@@ -8,7 +8,6 @@
 
 [package]
 name          = "oct"
-version       = "0.16.3"
 edition       = "2021"
 rust-version  = "1.83"
 description   = "Octonary transcoder."
@@ -16,6 +15,7 @@ documentation = "https://docs.rs/oct/"
 homepage      = "https://crates.io/crates/oct/"
 license       = "MPL-2.0"
 
+version.workspace     = true
 authors.workspace     = true
 readme.workspace      = true
 repository.workspace  = true
@@ -36,7 +36,7 @@ f128 = []
 f16  = []
 
 [dependencies]
-oct-macros = { path = "../oct-macros", version = "0.16.0", optional = true}
+oct-macros = { path = "../oct-macros", version = "0.17.0", optional = true}
 
 [lints]
 workspace = true

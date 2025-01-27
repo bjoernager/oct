@@ -111,7 +111,7 @@ use_mod!(pub sized_encode);
 ///
 /// let mut buf = Slot::with_capacity(0x100);
 ///
-/// buf.write(VALUE).unwrap();
+/// buf.write(&VALUE).unwrap();
 ///
 /// assert_eq!(buf.len(), 0x1F);
 ///
@@ -155,16 +155,16 @@ use_mod!(pub sized_encode);
 ///
 /// let mut buf = Slot::with_capacity(size_of::<i16>());
 ///
-/// buf.write(Num::Zero).unwrap();
+/// buf.write(&Num::Zero).unwrap();
 /// assert_eq!(buf, [0x00, 0x00].as_slice());
 ///
-/// buf.write(Num::One).unwrap();
+/// buf.write(&Num::One).unwrap();
 /// assert_eq!(buf, [0x01, 0x00].as_slice());
 ///
-/// buf.write(Num::Two).unwrap();
+/// buf.write(&Num::Two).unwrap();
 /// assert_eq!(buf, [0x02, 0x00].as_slice());
 ///
-/// buf.write(Num::Three).unwrap();
+/// buf.write(&Num::Three).unwrap();
 /// assert_eq!(buf, [0x03, 0x00].as_slice());
 /// ```
 ///

@@ -33,6 +33,7 @@ use core::slice::{self, SliceIndex};
 /// Create a slot for holding a `Request` enumeration:
 ///
 /// ```rust
+/// use oct::str;
 /// use oct::encode::{Encode, Output, SizedEncode};
 /// use oct::slot::Slot;
 /// use oct::string::String;
@@ -48,7 +49,7 @@ use core::slice::{self, SliceIndex};
 ///
 /// let mut buf = Slot::with_capacity(0x100);
 ///
-/// buf.write(Request::Join { username: "epsiloneridani".parse().unwrap() }).unwrap();
+/// buf.write(&Request::Join { username: str!["epsiloneridani"] }).unwrap();
 /// assert_eq!(buf.as_slice(), b"\0\0\x0E\0epsiloneridani");
 ///
 /// // Do something with the slot...
@@ -70,6 +71,7 @@ impl<T> Slot<T> {
 	/// If `T` implements [`SizedEncode`], it is usually preferred to instead use the [`new`](Self::new) constructor as it reserves enough space for *any* arbitrary encoding (according to [`MAX_ENCODED_SIZE`](SizedEncode::MAX_ENCODED_SIZE)):
 	#[inline]
 	#[must_use]
+	#[track_caller]
 	pub fn with_capacity(cap: usize) -> Self {
 		let buf = vec![0x00; cap].into();
 
@@ -89,6 +91,7 @@ impl<T> Slot<T> {
 	/// This array must additionally be allocated with the global allocator using the default layout (i.e. with a specified alignement of `1`), and `len` must also be within the bounds of this array.
 	#[inline]
 	#[must_use]
+	#[track_caller]
 	pub unsafe fn from_raw_parts(ptr: *mut u8, cap: usize, len: usize) -> Self {
 		let buf = {
 			let buf = ptr::slice_from_raw_parts_mut(ptr, cap);
@@ -153,6 +156,7 @@ impl<T> Slot<T> {
 	///
 	/// If `self` cannot contain the entirety of `data` then this method will panic.
 	#[inline]
+	#[track_caller]
 	pub fn copy_from_slice(&mut self, data: &[u8]) {
 		let len = data.len();
 
@@ -182,6 +186,7 @@ impl<T> Slot<T> {
 	/// The provided size must not be greater than the slot's capacity.
 	/// If this is the case, however, this method will panic.
 	#[inline(always)]
+	#[track_caller]
 	pub fn set_len(&mut self, len: usize) {
 		assert!(len <= self.capacity(), "cannot extend slot beyond capacity");
 
@@ -199,6 +204,7 @@ impl<T> Slot<T> {
 	/// The value of `len` may never be greater than the capacity of the slot.
 	/// Exceeding this will yield undefined behaviour.
 	#[inline(always)]
+	#[track_caller]
 	pub unsafe fn set_len_unchecked(&mut self, len: usize) {
 		debug_assert!(len <= self.capacity(), "cannot extend slot beyond capacity");
 
@@ -236,15 +242,6 @@ impl<T> Slot<T> {
 	pub fn is_empty(&self) -> bool {
 		self.len() == 0x0
 	}
-
-	/// Tests if the slot is full.
-	///
-	/// This is strictly equivalent to testing if [`len`](Self::len) is equal to [`capacity`](Self::capacity).
-	#[inline(always)]
-	#[must_use]
-	pub fn is_full(&self) -> bool {
-		self.len() == self.capacity()
-	}
 }
 
 #[cfg_attr(doc, doc(cfg(feature = "alloc")))]
@@ -257,10 +254,11 @@ impl<T: Encode> Slot<T> {
 	///
 	/// Any error that occurs during encoding is passed on and returned from this method.
 	#[inline]
-	pub fn write<U: Borrow<T>>(&mut self, value: U) -> Result<(), T::Error> {
+	#[track_caller]
+	pub fn write(&mut self, value: &T) -> Result<(), T::Error> {
 		let mut stream = Output::new(&mut self.buf);
 
-		value.borrow().encode(&mut stream)?;
+		value.encode(&mut stream)?;
 
 		let len = stream.position();
 		self.set_len(len);
@@ -282,6 +280,7 @@ impl<T: Decode> Slot<T> {
 	///
 	/// Any error that occurs during decoding is passed on and returned from this method.
 	#[inline]
+	#[track_caller]
 	pub fn read(&self) -> Result<T, T::Error> {
 		// We should only pass the used part of the slot to
 		// `decode`.

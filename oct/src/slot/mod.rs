@@ -7,6 +7,8 @@
 // <https://mozilla.org/MPL/2.0/>.
 
 //! Encoding slots.
+//!
+//! *See the [`Slot`] type for more information.*
 
 use crate::use_mod;
 

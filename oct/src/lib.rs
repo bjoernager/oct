@@ -154,7 +154,7 @@
 //!
 //!     let response = Response::AtmosphericTemperature(44.4); // For demonstration's sake.
 //!
-//!     response_buf.write(response).unwrap();
+//!     response_buf.write(&response).unwrap();
 //!     socket.send_to(&response_buf, addr).unwrap();
 //! });
 //!
@@ -167,7 +167,7 @@
 //!
 //!     let request = Request::AtmosphericTemperature { area: Area::AlQuds };
 //!
-//!     request_buf.write(request);
+//!     request_buf.write(&request);
 //!     socket.send(&request_buf).unwrap();
 //!
 //!     // Recieve final response from server.
@@ -257,3 +257,56 @@ pub mod slot;
 
 use_mod!(pub prim_discriminant);
 use_mod!(pub prim_repr);
+
+// TODO: When `generic_arg_infer` lands, add the
+// following rule to `vec`:
+//
+// `[$value:literal; _]`
+
+/// Directly constructs a [`Vec`](crate::vec::Vec) object.
+///
+/// This macro tests at compile-time whether the provided data can fit into the specified (or inferred) length.
+/// Compilation will fail if this is not the case.
+#[macro_export]
+macro_rules! vec {
+	[$value:literal; $len:expr] => {{
+		const { $crate::vec::__vec([$value; $len]) }
+	}};
+
+	[$($value:expr),+ $(,)?] => {{
+		const { $crate::vec::__vec([$($value,)*]) }
+	}};
+
+	[] => {{
+		const { $crate::vec::__vec([]) }
+	}}
+}
+
+/// Directly constructs a [`String`](crate::string::String) object.
+///
+/// This macro tests at compile-time whether the string literal can fit into the specified (or inferred) length.
+/// Compilation will fail if this is not the case.
+#[macro_export]
+macro_rules! str {
+	[$s:literal; $len:expr] => {{
+		const LEN: usize = $len;
+
+		const S: &'static str = $s;
+
+		const { $crate::string::__str::<LEN>(S) }
+	}};
+
+	[$s:literal; _] => {
+		$crate::str![$s]
+	};
+
+	[$s:literal] => {{
+		const S: &'static str = $s;
+
+		const { $crate::string::__str(S) }
+	}};
+
+	[] => {{
+		const { $crate::string::__str("") }
+	}}
+}
