@@ -14,6 +14,8 @@ use core::mem::MaybeUninit;
 use core::ptr::drop_in_place;
 use core::slice;
 
+// TODO: Implement `Copy` for `IntoIter`.
+
 /// Owning iterator to a vector.
 ///
 /// This type is exclusively used by the deconstruction of the [`Vec`](crate::vec::Vec) type.
@@ -81,6 +83,7 @@ impl<T: Clone, const N: usize> Clone for IntoIter<T, N> {
 	#[inline]
 	fn clone(&self) -> Self {
 		let mut buf = [const { MaybeUninit::<T>::uninit() }; N];
+
 		let Self { pos, len, .. } = *self;
 
 		let start = pos;
@@ -120,12 +123,11 @@ impl<T, const N: usize> Drop for IntoIter<T, N> {
 	fn drop(&mut self) {
 		// Drop every element that hasn't been consumed.
 
-		let remaining = self.as_mut_slice();
+		let remaining = &raw mut *self.as_mut_slice();
 		unsafe { drop_in_place(remaining) };
 
 		// We do not need to ensure that `self` is in a
 		// valid state after this call to `drop`.
-		// `MaybeUninit` also doesn't run destructors.
 	}
 }
 
@@ -154,11 +156,11 @@ impl<T, const N: usize> Iterator for IntoIter<T, N> {
 	fn nth(&mut self, index: usize) -> Option<Self::Item> {
 		if index > self.len { return None };
 
-		let skipped = {
+		let skipped = unsafe {
 			let start = self.pos;
 			let stop  = start + index - 0x1;
 
-			unsafe { self.buf.get_unchecked_mut(start..stop) }
+			self.buf.get_unchecked_mut(start..stop)
 		};
 
 		// Drop each skipped element.

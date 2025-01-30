@@ -430,7 +430,8 @@ impl<T: Decode, const N: usize> Decode for Vec<T, N> {
 
 	#[inline]
 	fn decode(input: &mut decode::Input) -> Result<Self, Self::Error> {
-		let len = Decode::decode(input).unwrap();
+		let Ok(len) = Decode::decode(input);
+
 		if len > N {
 			return Err(CollectionDecodeError::BadLength(LengthError {
 				remaining: N,
@@ -460,8 +461,10 @@ impl<T, const N: usize> Default for Vec<T, N> {
 		unsafe {
 			let buf = [const { MaybeUninit::uninit() }; N];
 
-			// SAFETY: The resulting slice is zero lengthed.
-			Self::from_raw_parts(buf, 0x0)
+			// SAFETY: The resulting vector is zero lengthed
+			// and does therefore not expose any uninitialised
+			// objects.
+			Self::from_raw_parts(buf, Default::default())
 		}
 	}
 }
@@ -487,12 +490,11 @@ impl<T, const N: usize> Drop for Vec<T, N> {
 	fn drop(&mut self) {
 		// Drop every element that is currently alive.
 
-		let remaining = self.as_mut_slice();
+		let remaining = &raw mut *self.as_mut_slice();
 		unsafe { drop_in_place(remaining) };
 
 		// We do not need to ensure that `self` is in a
 		// valid state after this call to `drop`.
-		// `MaybeUninit` also doesn't run destructors.
 	}
 }
 
@@ -511,9 +513,12 @@ impl<T, const N: usize> From<[T; N]> for Vec<T, N> {
 	#[inline(always)]
 	fn from(value: [T; N]) -> Self {
 		unsafe {
-			let buf = value.as_ptr().cast::<[MaybeUninit<T>; N]>().read();
+			let buf = value
+				.as_ptr()
+				.cast::<[MaybeUninit<T>; N]>()
+				.read();
 
-			Self { buf, len: N }
+			Self { len: N, buf }
 		}
 	}
 }
@@ -523,8 +528,8 @@ impl<T, const N: usize> FromIterator<T> for Vec<T, N> {
 	fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
 		let mut iter = iter.into_iter();
 
-		let mut buf = [const { MaybeUninit::<T>::uninit() }; N];
 		let mut len = 0x0;
+		let mut buf = [const { MaybeUninit::<T>::uninit() }; N];
 
 		for item in &mut buf {
 			let Some(value) = iter.next() else { break };
@@ -550,6 +555,7 @@ impl<T, I: SliceIndex<[T]>, const N: usize> Index<I> for Vec<T, N> {
 	type Output = I::Output;
 
 	#[inline(always)]
+	#[track_caller]
 	fn index(&self, index: I) -> &Self::Output {
 		self.get(index).unwrap()
 	}
@@ -557,6 +563,7 @@ impl<T, I: SliceIndex<[T]>, const N: usize> Index<I> for Vec<T, N> {
 
 impl<T, I: SliceIndex<[T]>, const N: usize> IndexMut<I> for Vec<T, N> {
 	#[inline(always)]
+	#[track_caller]
 	fn index_mut(&mut self, index: I) -> &mut Self::Output {
 		self.get_mut(index).unwrap()
 	}
@@ -690,8 +697,8 @@ impl<T: PartialEq<U>, U, const N: usize> PartialEq<Vec<U, N>> for alloc::vec::Ve
 
 // NOTE: This function is used by the `vec` macro
 // to circumvent itself using code which may be
-// forbidden by the macro user's lints. This func-
-// tion is sound, but please do not call it direct-
+// forbidden by the macro user's lints. While this
+// function is sound, please do not call it direct-
 // ly. It is not a breaking change if it is re-
 // moved.
 #[doc(hidden)]
@@ -703,8 +710,8 @@ pub const fn __vec<T, const N: usize, const M: usize>(data: [T; N]) -> Vec<T, M>
 
 	let data = ManuallyDrop::new(data);
 
-	let mut buf = [const { MaybeUninit::uninit() }; M];
 	let     len = N;
+	let mut buf = [const { MaybeUninit::uninit() }; M];
 
 	unsafe {
 		let src = (&raw const data).cast();

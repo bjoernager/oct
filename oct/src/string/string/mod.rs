@@ -229,7 +229,8 @@ impl<const N: usize> String<N> {
 	#[inline(always)]
 	#[must_use]
 	pub fn is_char_boundary(&self, index: usize) -> bool {
-		// TODO: Mark with `const`.
+		// TODO: Mark with `const` when `const_is_char_
+		// boundary` lands.
 
 		self.as_str().is_char_boundary(index)
 	}
@@ -524,6 +525,7 @@ impl<I: SliceIndex<str>, const N: usize> Index<I> for String<N> {
 	type Output	= I::Output;
 
 	#[inline(always)]
+	#[track_caller]
 	fn index(&self, index: I) -> &Self::Output {
 		self.get(index).unwrap()
 	}
@@ -531,6 +533,7 @@ impl<I: SliceIndex<str>, const N: usize> Index<I> for String<N> {
 
 impl<I: SliceIndex<str>, const N: usize> IndexMut<I> for String<N> {
 	#[inline(always)]
+	#[track_caller]
 	fn index_mut(&mut self, index: I) -> &mut Self::Output {
 		self.get_mut(index).unwrap()
 	}
@@ -660,8 +663,8 @@ impl<const N: usize> PartialEq<String<N>> for alloc::string::String {
 
 // NOTE: This function is used by the `str` macro
 // to circumvent itself using code which may be
-// forbidden by the macro user's lints. This func-
-// tion is sound, but please do not call it direct-
+// forbidden by the macro user's lints. While this
+// function is sound, please do not call it direct-
 // ly. It is not a breaking change if it is re-
 // moved.
 #[doc(hidden)]

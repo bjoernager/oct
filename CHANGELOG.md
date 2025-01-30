@@ -3,6 +3,12 @@
 This is the changelog of [Oct](https://crates.io/crates/oct/).
 See `README.md` for more information.
 
+## 0.17.1
+
+* Clean up code
+* Fix `<{IntoIter, Vec} as Drop>::drop`
+* Update `track_caller` usage
+
 ## 0.17.0
 
 * Update signature for `Slot::write`
