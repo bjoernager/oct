@@ -7,20 +7,17 @@
 // <https://mozilla.org/MPL/2.0/>.
 
 use core::cmp::Ordering;
-use oct::str;
+use oct::string;
 use oct::error::Utf8Error;
 use oct::string::String;
 use oct::vec::Vec;
 
 #[test]
 fn test_str_macro() {
-	let s0: String<0x3> = str!["Oct"; 0x3];
-	let s1: String<0x3> = str!["Oct"; _];
-	let s2: String<0x3> = str!["Oct"];
+	let s0: String<0x3> = string!("Oct", 0x3);
+	let s1: String<0x3> = string!("Oct");
 
 	assert_eq!(s0, s1);
-	assert_eq!(s0, s2);
-	assert_eq!(s1, s2);
 }
 
 #[test]
@@ -31,9 +28,9 @@ fn test_string() {
 
 #[test]
 fn test_string_size() {
-	let s0 = str!["Hello there!";          0x0C];
-	let s1 = str!["MEIN_GRO\u{1E9E}_GOTT"; 0x12];
-	let s2 = str!["Hello";                 0x05];
+	let s0 = string!("Hello there!",          0x0C);
+	let s1 = string!("MEIN_GRO\u{1E9E}_GOTT", 0x12);
+	let s2 = string!("Hello",                 0x05);
 
 	assert_eq!(s0.partial_cmp(&s0), Some(Ordering::Equal));
 	assert_eq!(s0.partial_cmp(&s1), Some(Ordering::Less));
@@ -63,7 +60,7 @@ fn test_string_from_utf8() {
 			let utf8 = core::borrow::Borrow::<[u8]>::borrow($utf8);
 
 			assert!(matches!(
-				String::<$len>::from_utf8(Vec::new(utf8).unwrap()),
+				String::<$len>::from_utf8(Vec::copy_from_slice(utf8).unwrap()),
 				$result,
 			));
 		}};

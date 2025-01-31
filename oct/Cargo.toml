@@ -36,7 +36,7 @@ f128 = []
 f16  = []
 
 [dependencies]
-oct-macros = { path = "../oct-macros", version = "0.17", optional = true}
+oct-macros = { path = "../oct-macros", version = "0.18", optional = true}
 
 [lints]
 workspace = true

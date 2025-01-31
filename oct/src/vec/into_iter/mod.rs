@@ -14,8 +14,6 @@ use core::mem::MaybeUninit;
 use core::ptr::drop_in_place;
 use core::slice;
 
-// TODO: Implement `Copy` for `IntoIter`.
-
 /// Owning iterator to a vector.
 ///
 /// This type is exclusively used by the deconstruction of the [`Vec`](crate::vec::Vec) type.
@@ -32,7 +30,7 @@ impl<T, const N: usize> IntoIter<T, N> {
 	/// Constructs a new, size-constrained iterator.
 	#[inline(always)]
 	#[track_caller]
-	pub(crate) const unsafe fn new(buf: [MaybeUninit<T>; N], len: usize) -> Self {
+	pub(super) const unsafe fn new(buf: [MaybeUninit<T>; N], len: usize) -> Self {
 		debug_assert!(len <= N, "cannot construct iterator longer than its capacity");
 
 		Self { len, pos: 0x0, buf }

@@ -3,6 +3,19 @@
 This is the changelog of [Oct](https://crates.io/crates/oct/).
 See `README.md` for more information.
 
+## 0.18.0
+
+* Clean up code
+* Update `Hash` implementation for `Vec`
+* Update lints
+* Remove `vec` macro
+* Rework `str` macro as `string`
+* Remove `Vec::copy_from_slice`
+* Rename `new` and `new_unchecked` in `Vec` to `copy_from_slice` and `copy_from_slice_unchecked`
+* Add new `new` constructor to `Vec`
+* Update docs
+* Add `test_vec_new` test
+
 ## 0.17.1
 
 * Clean up code

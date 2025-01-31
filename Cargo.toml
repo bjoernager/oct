@@ -3,7 +3,7 @@ members  = ["oct", "oct-benchmarks", "oct-macros"]
 resolver = "2"
 
 [workspace.package]
-version    = "0.17.1"
+version    = "0.18.0"
 authors    = ["Gabriel Bjørnager Jensen"]
 readme     = "README.md"
 repository = "https://gitlab.com/bjoernager/oct/"
@@ -156,7 +156,7 @@ unused_async                       = "warn"
 unused_peekable                    = "warn"
 unused_rounding                    = "warn"
 use_self                           = "forbid"
-used_underscore_binding            = "forbid"
+used_underscore_binding            = "warn"
 useless_let_if_seq                 = "warn"
 verbose_bit_mask                   = "warn"
 verbose_file_reads                 = "warn"

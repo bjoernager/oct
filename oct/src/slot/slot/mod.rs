@@ -33,7 +33,7 @@ use core::slice::{self, SliceIndex};
 /// Create a slot for holding a `Request` enumeration:
 ///
 /// ```rust
-/// use oct::str;
+/// use oct::string;
 /// use oct::encode::{Encode, Output, SizedEncode};
 /// use oct::slot::Slot;
 /// use oct::string::String;
@@ -49,10 +49,10 @@ use core::slice::{self, SliceIndex};
 ///
 /// let mut buf = Slot::with_capacity(0x100);
 ///
-/// buf.write(&Request::Join { username: str!["epsiloneridani"] }).unwrap();
+/// buf.write(&Request::Join { username: string!("epsiloneridani") }).unwrap();
 /// assert_eq!(buf.as_slice(), b"\0\0\x0E\0epsiloneridani");
 ///
-/// // Do something with the slot...
+/// // ...
 /// ```
 #[cfg_attr(doc, doc(cfg(feature = "alloc")))]
 pub struct Slot<T> {

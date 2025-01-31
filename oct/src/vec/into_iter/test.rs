@@ -55,3 +55,16 @@ fn test_vec_iter_double_ended() {
 	assert_eq!(data.next_back(), Some('W'));
 	assert_eq!(data.next(),      Some(' '));
 }
+
+#[test]
+fn test_vec_new() {
+	assert_eq!(
+		Vec::<u32, 0x6>::new([0x6]),
+		[0x6].as_slice(),
+	);
+
+	assert_eq!(
+		Vec::<u32, 0x6>::new([0x6; 0x6]),
+		[0x6, 0x6, 0x6, 0x6, 0x6, 0x6].as_slice(),
+	);
+}

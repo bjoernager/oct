@@ -127,7 +127,7 @@ impl<const N: usize> String<N> {
 			copy_nonoverlapping(src, dst, len);
 		}
 
-		// SAFETY: `str` is guaranteed by the caller to be
+		// SAFETY: `s` is guaranteed by the caller to be
 		// valid.
 		unsafe { Self::from_raw_parts(buf, len) }
 	}
@@ -674,5 +674,7 @@ impl<const N: usize> PartialEq<String<N>> for alloc::string::String {
 pub const fn __str<const N: usize>(s: &'static str) -> String<N> {
 	assert!(s.len() <= N, "cannot construct string from literal that is longer");
 
+	// SAFETY: `s` has been tested to not contain more
+	// than `N` octets.
 	unsafe { String::new_unchecked(s) }
 }

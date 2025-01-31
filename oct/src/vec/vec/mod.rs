@@ -65,16 +65,66 @@ pub struct Vec<T, const N: usize> {
 impl<T, const N: usize> Vec<T, N> {
 	/// Constructs a new slice from existing data.
 	///
+	/// This constructor takes inherits an existing array and converts it to a vector.
+	/// If the provided array's length `M` is greater than `N`, then this function will panic at compile-time.
+	#[inline(always)]
+	#[must_use]
+	#[track_caller]
+	pub const fn new<const M: usize>(data: [T; M]) -> Self
+	where
+		T: Copy,
+	{
+		const { assert!(M <= N, "cannot construct vector from array that is longer") };
+
+		let data = ManuallyDrop::new(data);
+
+		let len = M;
+
+		let buf = if N == M {
+			// Reinterpret the existing buffer.
+
+			let ptr = (&raw const data).cast::<[MaybeUninit<T>; N]>();
+
+			// SAFETY: `ManuallyDrop<[T; N]>` and
+			// `[MaybeUninit<T>; N]` are both transparent to
+			// `[T; N]`. `data` can also be forgotten as its
+			// constructor will not be run.
+			unsafe { ptr.read() }
+		} else {
+			// Reallocate the buffer to `N` elements.
+
+			let mut buf = [const { MaybeUninit::uninit() }; N];
+
+			unsafe {
+				let src = (&raw const data).cast();
+				let dst = buf.as_mut_ptr();
+
+				copy_nonoverlapping(src, dst, len);
+			}
+
+			buf
+		};
+
+		// SAFETY: We have checked that the length is with-
+		// in bounds.
+		unsafe { Self::from_raw_parts(buf, len) }
+	}
+
+	/// Copies elements from a slice into a new vector.
+	///
+	/// This constructor copies the raw representation of `data` into a new allocation of `N` elements.
+	///
 	/// # Errors
 	///
-	/// If an array of `N` elements cannot contain the entirety of `data`, then this constructor will return an error.
-	#[inline(always)]
+	/// If `self` cannot contain the entirety of `data`, then this method will return an error.
+	#[inline]
 	#[track_caller]
-	pub const fn new(data: &[T]) -> Result<Self, LengthError>
+	pub const fn copy_from_slice(data: &[T]) -> Result<Self, LengthError>
 	where
 		T: Copy,
 	{
 		let len = data.len();
+
 		if len > N {
 			return Err(LengthError {
 				remaining: N,
@@ -84,18 +134,20 @@ impl<T, const N: usize> Vec<T, N> {
 
 		// SAFETY: We have checked that the length is with-
 		// in bounds.
-		let this = unsafe { Self::new_unchecked(data) };
+		let this = unsafe { Self::copy_from_slice_unchecked(data) };
 		Ok(this)
 	}
 
 	/// Constructs a new slice from existing data without checking bounds.
+	///
+	/// For a safe version of this constructor, see [`copy_from_slice`](Self::copy_from_slice).
 	///
 	/// # Safety
 	///
 	/// The entirety of `data` must be able to fit into an array of `N` elements.
 	#[inline(always)]
 	#[track_caller]
-	pub const unsafe fn new_unchecked(data: &[T]) -> Self
+	pub const unsafe fn copy_from_slice_unchecked(data: &[T]) -> Self
 	where
 		T: Copy,
 	{
@@ -111,7 +163,9 @@ impl<T, const N: usize> Vec<T, N> {
 			copy_nonoverlapping(src, dst, len);
 		}
 
-		// SAFETY: The relevant elements have been initialised and `len`
+		// SAFETY: The relevant elements have been ini-
+		// tialised and `len` is not greater than `N`, as
+		// guaranteed by the caller.
 		unsafe { Self::from_raw_parts(buf, len) }
 	}
 
@@ -132,32 +186,6 @@ impl<T, const N: usize> Vec<T, N> {
 		debug_assert!(len <= N, "cannot construct vector longer than its capacity");
 
 		Self { len, buf }
-	}
-
-	/// Copies elements from a slice.
-	///
-	/// # Panics
-	///
-	/// If `self` cannot contain the entirety of `data`, then this method will panic.
-	#[inline]
-	#[track_caller]
-	pub const fn copy_from_slice(&mut self, data: &[T])
-	where
-		T: Copy,
-	{
-		assert!(data.len() <= N, "vector cannot contain source slice");
-
-		unsafe {
-			let src = data.as_ptr();
-			let dst = self.buf.as_mut_ptr().cast();
-
-			// SAFETY: Pointers are exclusive due to reference
-			// rules, and `T` implements `Copy`.
-			copy_nonoverlapping(src, dst, data.len());
-
-			// SAFETY: The length has
-			self.set_len_unchecked(data.len());
-		}
 	}
 
 	/// Generates a vector referencing the elements of `self`.
@@ -545,9 +573,7 @@ impl<T, const N: usize> FromIterator<T> for Vec<T, N> {
 impl<T: Hash, const N: usize> Hash for Vec<T, N> {
 	#[inline(always)]
 	fn hash<H: Hasher>(&self, state: &mut H) {
-		for v in self {
-			v.hash(state);
-		}
+		self.as_slice().hash(state)
 	}
 }
 
@@ -557,7 +583,7 @@ impl<T, I: SliceIndex<[T]>, const N: usize> Index<I> for Vec<T, N> {
 	#[inline(always)]
 	#[track_caller]
 	fn index(&self, index: I) -> &Self::Output {
-		self.get(index).unwrap()
+		Index::index(self.as_slice(), index)
 	}
 }
 
@@ -565,7 +591,7 @@ impl<T, I: SliceIndex<[T]>, const N: usize> IndexMut<I> for Vec<T, N> {
 	#[inline(always)]
 	#[track_caller]
 	fn index_mut(&mut self, index: I) -> &mut Self::Output {
-		self.get_mut(index).unwrap()
+		IndexMut::index_mut(self.as_mut_slice(), index)
 	}
 }
 
@@ -664,7 +690,7 @@ impl<T: Copy, const N: usize> TryFrom<&[T]> for Vec<T, N> {
 
 	#[inline(always)]
 	fn try_from(value: &[T]) -> Result<Self, Self::Error> {
-		Self::new(value)
+		Self::copy_from_slice(value)
 	}
 }
 
@@ -693,32 +719,4 @@ impl<T: PartialEq<U>, U, const N: usize> PartialEq<Vec<U, N>> for alloc::vec::Ve
 	fn eq(&self, other: &Vec<U, N>) -> bool {
 		self.as_slice() == other.as_slice()
 	}
-}
-
-// NOTE: This function is used by the `vec` macro
-// to circumvent itself using code which may be
-// forbidden by the macro user's lints. While this
-// function is sound, please do not call it direct-
-// ly. It is not a breaking change if it is re-
-// moved.
-#[doc(hidden)]
-#[inline(always)]
-#[must_use]
-#[track_caller]
-pub const fn __vec<T, const N: usize, const M: usize>(data: [T; N]) -> Vec<T, M> {
-	assert!(N <= M, "cannot construct vector from literal that is longer");
-
-	let data = ManuallyDrop::new(data);
-
-	let     len = N;
-	let mut buf = [const { MaybeUninit::uninit() }; M];
-
-	unsafe {
-		let src = (&raw const data).cast();
-		let dst = buf.as_mut_ptr();
-
-		copy_nonoverlapping(src, dst, len);
-	}
-
-	unsafe { Vec::from_raw_parts(buf, len) }
 }
