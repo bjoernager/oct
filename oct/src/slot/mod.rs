@@ -10,6 +10,6 @@
 //!
 //! *See the [`Slot`] type for more information.*
 
-use crate::use_mod;
+mod slot;
 
-use_mod!(pub slot);
+pub use slot::Slot;

@@ -8,8 +8,8 @@
 
 [package]
 name          = "oct"
-edition       = "2021"
-rust-version  = "1.83"
+edition       = "2024"
+rust-version  = "1.86"
 description   = "Octonary transcoder."
 documentation = "https://docs.rs/oct/"
 homepage      = "https://crates.io/crates/oct/"
@@ -25,6 +25,9 @@ categories.workspace  = true
 [package.metadata.docs.rs]
 all-features = true
 
+[dependencies]
+oct-macros = { path = "../oct-macros", version = "0.19", optional = true}
+
 [features]
 default = ["alloc", "proc-macro", "std"]
 
@@ -34,9 +37,6 @@ std        = ["alloc"]
 
 f128 = []
 f16  = []
-
-[dependencies]
-oct-macros = { path = "../oct-macros", version = "0.18", optional = true}
 
 [lints]
 workspace = true

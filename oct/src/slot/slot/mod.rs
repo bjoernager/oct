@@ -56,8 +56,8 @@ use core::slice::{self, SliceIndex};
 /// ```
 #[cfg_attr(doc, doc(cfg(feature = "alloc")))]
 pub struct Slot<T> {
-	buf: Box<[u8]>,
 	len: usize,
+	buf: Box<[u8]>,
 
 	_ty: PhantomData<fn() -> T>,
 }
@@ -100,8 +100,8 @@ impl<T> Slot<T> {
 		};
 
 		Self {
-			buf,
 			len,
+			buf,
 
 			_ty: PhantomData,
 		}
@@ -310,7 +310,7 @@ impl<T: SizedEncode> Slot<T> {
 impl<T> AsMut<[u8]> for Slot<T> {
 	#[inline(always)]
 	fn as_mut(&mut self) -> &mut [u8] {
-		self.as_mut_slice()
+		self
 	}
 }
 
@@ -319,7 +319,7 @@ impl<T> AsMut<[u8]> for Slot<T> {
 impl<T> AsRef<[u8]> for Slot<T> {
 	#[inline(always)]
 	fn as_ref(&self) -> &[u8] {
-		self.as_slice()
+		self
 	}
 }
 
@@ -328,7 +328,7 @@ impl<T> AsRef<[u8]> for Slot<T> {
 impl<T> Borrow<[u8]> for Slot<T> {
 	#[inline(always)]
 	fn borrow(&self) -> &[u8] {
-		self.as_slice()
+		self
 	}
 }
 
@@ -337,14 +337,14 @@ impl<T> Borrow<[u8]> for Slot<T> {
 impl<T> BorrowMut<[u8]> for Slot<T> {
 	#[inline(always)]
 	fn borrow_mut(&mut self) -> &mut [u8] {
-		self.as_mut_slice()
+		self
 	}
 }
 
 #[cfg_attr(doc, doc(cfg(feature = "alloc")))]
 impl<T> Debug for Slot<T> {
 	#[inline(always)]
-	fn fmt(&self, f: &mut Formatter) -> fmt::Result { write!(f, "{:?}", self.as_slice()) }
+	fn fmt(&self, f: &mut Formatter) -> fmt::Result { write!(f, "{:?}", &**self) }
 }
 
 #[cfg_attr(doc, doc(cfg(feature = "alloc")))]
@@ -379,7 +379,7 @@ impl<T, I: SliceIndex<[u8]>> Index<I> for Slot<T> {
 
 	#[inline(always)]
 	fn index(&self, index: I) -> &Self::Output {
-		self.get(index).unwrap()
+		Index::index(&**self, index)
 	}
 }
 
@@ -387,7 +387,7 @@ impl<T, I: SliceIndex<[u8]>> Index<I> for Slot<T> {
 impl<T, I: SliceIndex<[u8]>> IndexMut<I> for Slot<T> {
 	#[inline(always)]
 	fn index_mut(&mut self, index: I) -> &mut Self::Output {
-		self.get_mut(index).unwrap()
+		IndexMut::index_mut(&mut **self, index)
 	}
 }
 
@@ -395,7 +395,13 @@ impl<T, I: SliceIndex<[u8]>> IndexMut<I> for Slot<T> {
 impl<T> PartialEq<[u8]> for Slot<T> {
 	#[inline(always)]
 	fn eq(&self, other: &[u8]) -> bool {
-		self.as_slice() == other
+		**self == *other
+	}
+
+	#[expect(clippy::partialeq_ne_impl)]
+	#[inline(always)]
+	fn ne(&self, other: &[u8]) -> bool {
+		**self != *other
 	}
 }
 
@@ -403,14 +409,12 @@ impl<T> PartialEq<[u8]> for Slot<T> {
 impl<T> PartialEq<&[u8]> for Slot<T> {
 	#[inline(always)]
 	fn eq(&self, other: &&[u8]) -> bool {
-		self.as_slice() == *other
+		**self == **other
 	}
-}
 
-#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
-impl<T> PartialEq<&mut [u8]> for Slot<T> {
+	#[expect(clippy::partialeq_ne_impl)]
 	#[inline(always)]
-	fn eq(&self, other: &&mut [u8]) -> bool {
-		self.as_slice() == *other
+	fn ne(&self, other: &&[u8]) -> bool {
+		**self != **other
 	}
 }

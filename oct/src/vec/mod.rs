@@ -8,7 +8,33 @@
 
 //! Vector container and iterators.
 
-use crate::use_mod;
+mod into_iter;
+mod vec;
 
-use_mod!(pub into_iter);
-use_mod!(pub vec);
+pub use into_iter::IntoIter;
+pub use vec::{__vec, Vec};
+
+use core::ops::Range;
+
+#[inline]
+unsafe fn clone_to_uninit_in_range<T: Clone>(src: *const T, dst: *mut T, range: Range<usize>) {
+	// SAFETY: The caller guarantees a valid range.
+	for i in range.start..range.end {
+		// SAFETY: We guarantee that all items in the range
+		//
+		// 0x0..self.len
+		//
+		// are alive (and initialised).
+		let src_item = unsafe { &*src.add(i) };
+
+		let dst_item = unsafe { dst.add(i) };
+
+		// Clone the item value.
+
+		let value = src_item.clone();
+
+		// Write the item value.
+
+		unsafe { dst_item.write(value) };
+	}
+}

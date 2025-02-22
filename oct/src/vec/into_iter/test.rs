@@ -6,32 +6,46 @@
 // can obtain one at:
 // <https://mozilla.org/MPL/2.0/>.
 
-use core::str::FromStr;
+use oct::string;
 use oct::string::String;
 use oct::vec::Vec;
 
 #[test]
 fn test_vec_iter_clone() {
-	let data = String::<0x9>::from_str("fran\u{00E7}ais").unwrap();
+	let data: String::<0xF> = string!("fran\u{00E7}aise");
 
-	let mut data0 = data.into_bytes().into_iter();
+	assert_eq!(data.len(),      0xA);
+	assert_eq!(data.as_bytes(), b"fran\xC3\xA7aise");
 
-	let _ = data0.nth(0x4);
+	let mut iter0 = data.into_bytes().into_iter();
 
-	let mut data1 = data0.clone();
+	assert_eq!(iter0.len(),      0xA);
+	assert_eq!(iter0.as_slice(), b"fran\xC3\xA7aise");
 
-	assert_eq!(data0.next(), Some(0xC3));
-	assert_eq!(data1.next(), Some(0xC3));
-	assert_eq!(data0.next(), Some(0xA7));
-	assert_eq!(data1.next(), Some(0xA7));
-	assert_eq!(data0.next(), Some(b'a'));
-	assert_eq!(data1.next(), Some(b'a'));
-	assert_eq!(data0.next(), Some(b'i'));
-	assert_eq!(data1.next(), Some(b'i'));
-	assert_eq!(data0.next(), Some(b's'));
-	assert_eq!(data1.next(), Some(b's'));
-	assert_eq!(data0.next(), None);
-	assert_eq!(data1.next(), None);
+	assert_eq!(iter0.nth(0x3), Some(b'n'));
+
+	assert_eq!(iter0.len(),      0x6);
+	assert_eq!(iter0.as_slice(), b"\xC3\xA7aise");
+
+	let mut iter1 = iter0.clone();
+
+	assert_eq!(iter1.len(),      0x6);
+	assert_eq!(iter1.as_slice(), b"\xC3\xA7aise");
+
+	assert_eq!(iter0.next(), Some(0xC3));
+	assert_eq!(iter1.next(), Some(0xC3));
+	assert_eq!(iter0.next(), Some(0xA7));
+	assert_eq!(iter1.next(), Some(0xA7));
+	assert_eq!(iter0.next(), Some(b'a'));
+	assert_eq!(iter1.next(), Some(b'a'));
+	assert_eq!(iter0.next(), Some(b'i'));
+	assert_eq!(iter1.next(), Some(b'i'));
+	assert_eq!(iter0.next(), Some(b's'));
+	assert_eq!(iter1.next(), Some(b's'));
+	assert_eq!(iter0.next(), Some(b'e'));
+	assert_eq!(iter1.next(), Some(b'e'));
+	assert_eq!(iter0.next(), None);
+	assert_eq!(iter1.next(), None);
 }
 
 #[test]

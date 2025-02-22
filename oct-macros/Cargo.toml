@@ -8,7 +8,7 @@
 
 [package]
 name          = "oct-macros"
-edition       = "2021"
+edition       = "2024"
 description   = "Octonary transcoder. Procedural macros."
 documentation = "https://docs.rs/oct-macros/"
 homepage      = "https://crates.io/crates/oct-macros/"

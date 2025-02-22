@@ -14,7 +14,7 @@ use oct::vec::Vec;
 
 #[test]
 fn test_str_macro() {
-	let s0: String<0x3> = string!("Oct", 0x3);
+	let s0: String<0x3> = string!("Oct");
 	let s1: String<0x3> = string!("Oct");
 
 	assert_eq!(s0, s1);
@@ -28,9 +28,9 @@ fn test_string() {
 
 #[test]
 fn test_string_size() {
-	let s0 = string!("Hello there!",          0x0C);
-	let s1 = string!("MEIN_GRO\u{1E9E}_GOTT", 0x12);
-	let s2 = string!("Hello",                 0x05);
+	let s0: String<0x0C> = string!("Hello there!");
+	let s1: String<0x12> = string!("MEIN_GRO\u{1E9E}_GOTT");
+	let s2: String<0x05> = string!("Hello");
 
 	assert_eq!(s0.partial_cmp(&s0), Some(Ordering::Equal));
 	assert_eq!(s0.partial_cmp(&s1), Some(Ordering::Less));

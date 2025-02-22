@@ -9,7 +9,6 @@
 use core::time::Duration;
 use oct::encode::{Encode, SizedEncode};
 use oct::error::UsizeEncodeError;
-use oct::string::String as OctString;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 macro_rules! test {
@@ -21,7 +20,7 @@ macro_rules! test {
 		)*
 	} => {{
 		$($({
-			let mut buf = ::std::vec![0x00; <$ty as ::oct::encode::SizedEncode>::MAX_ENCODED_SIZE];
+			let mut buf = ::std::vec![0x00; 0x100];
 
 			let mut output = ::oct::encode::Output::new(&mut buf);
 
@@ -75,12 +74,12 @@ fn test_encode() {
 			]),
 		}
 
-		OctString<0x1> {
-			OctString::new("A").unwrap() => Ok(&[0x01, 0x00, 0x41]),
+		str {
+			"A" => Ok(&[0x01, 0x00, 0x41]),
 		}
 
-		OctString<0xA> {
-			OctString::new("l\u{00F8}gma\u{00F0}ur").unwrap() => Ok(&[
+		str {
+			"l\u{00F8}gma\u{00F0}ur" => Ok(&[
 				0x0A, 0x00, 0x6C, 0xC3, 0xB8, 0x67, 0x6D, 0x61,
 				0xC3, 0xB0, 0x75, 0x72,
 			])

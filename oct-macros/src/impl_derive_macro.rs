@@ -47,7 +47,7 @@ where
 			enum_body(data, repr)
 		}
 
-		Data::Union(..) => panic!("unions cannot derive `{trait_name}`"),
+		Data::Union(..) => panic!("untagged unions cannot derive `{trait_name}`"),
 	};
 
 	let generic_params = &input.generics.params;

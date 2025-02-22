@@ -25,7 +25,10 @@ use core::slice::{self, SliceIndex};
 use core::str::{self, FromStr};
 
 #[cfg(feature = "alloc")]
-use alloc::boxed::Box;
+use {
+	alloc::borrow::Cow,
+	alloc::boxed::Box,
+};
 
 #[cfg(feature = "std")]
 use {
@@ -94,7 +97,7 @@ impl<const N: usize> String<N> {
 
 		unsafe {
 			let src = s.as_ptr();
-			let dst = buf.as_mut_ptr().cast();
+			let dst = buf.as_mut_ptr();
 
 			copy_nonoverlapping(src, dst, len);
 		}
@@ -122,7 +125,7 @@ impl<const N: usize> String<N> {
 
 		unsafe {
 			let src = s.as_ptr();
-			let dst = buf.as_mut_ptr().cast();
+			let dst = buf.as_mut_ptr();
 
 			copy_nonoverlapping(src, dst, len);
 		}
@@ -181,7 +184,7 @@ impl<const N: usize> String<N> {
 		// SAFETY: We can safely transmute here as
 		// `MaybeUninit<u8>` is transparent to `u8` and
 		// we have initialised the remaining bytes.
-		let buf = unsafe { buf.as_ptr().cast::<[u8; N]>().read() };
+		let buf = unsafe { (buf.as_ptr() as *const [u8; N]).read() };
 
 		// SAFETY: `Vec::into_raw_parts` guarantees that
 		// the returned length is not greater than `N`.
@@ -228,10 +231,7 @@ impl<const N: usize> String<N> {
 	/// In this case, character is defined as a set of one to four UTF-8 octets that represent a Unicode code point (specifically a Unicode scalar).
 	#[inline(always)]
 	#[must_use]
-	pub fn is_char_boundary(&self, index: usize) -> bool {
-		// TODO: Mark with `const` when `const_is_char_
-		// boundary` lands.
-
+	pub const fn is_char_boundary(&self, index: usize) -> bool {
 		self.as_str().is_char_boundary(index)
 	}
 
@@ -329,7 +329,7 @@ impl<const N: usize> String<N> {
 		let (buf, len) = self.into_raw_parts();
 
 		// SAFETY: `MaybeUninit<u8>` is transparent to `u8`.
-		let buf = unsafe { (&raw const buf).cast::<[MaybeUninit<u8>; N]>().read() };
+		let buf = unsafe { (&raw const buf as *const [MaybeUninit<u8>; N]).read() };
 
 		unsafe { Vec::from_raw_parts(buf, len) }
 
@@ -492,9 +492,9 @@ impl<const N: usize> FromIterator<char> for String<N> {
 			if rem < req { break }
 
 			let start = len;
-			let stop  = start + req;
+			let end   = start + req;
 
-			c.encode_utf8(&mut buf[start..stop]);
+			c.encode_utf8(&mut buf[start..end]);
 
 			len += req;
 		}
@@ -542,28 +542,61 @@ impl<I: SliceIndex<str>, const N: usize> IndexMut<I> for String<N> {
 impl<const N: usize> Ord for String<N> {
 	#[inline(always)]
 	fn cmp(&self, other: &Self) -> Ordering {
-		self.as_str().cmp(other.as_str())
+		(**self).cmp(&**other)
 	}
 }
 
 impl<const N: usize, const M: usize> PartialEq<String<M>> for String<N> {
 	#[inline(always)]
 	fn eq(&self, other: &String<M>) -> bool {
-		self.as_str() == other.as_str()
+		**self == **other
+	}
+
+	#[expect(clippy::partialeq_ne_impl)]
+	#[inline(always)]
+	fn ne(&self, other: &String<M>) -> bool {
+		**self != **other
+	}
+}
+
+#[cfg(feature = "alloc")]
+#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
+impl<const N: usize> PartialEq<Cow<'_, str>> for String<N> {
+	#[inline(always)]
+	fn eq(&self, other: &Cow<str>) -> bool {
+		**self == **other
+	}
+
+	#[expect(clippy::partialeq_ne_impl)]
+	#[inline(always)]
+	fn ne(&self, other: &Cow<str>) -> bool {
+		**self != **other
 	}
 }
 
 impl<const N: usize> PartialEq<str> for String<N> {
 	#[inline(always)]
 	fn eq(&self, other: &str) -> bool {
-		self.as_str() == other
+		**self == *other
+	}
+
+	#[expect(clippy::partialeq_ne_impl)]
+	#[inline(always)]
+	fn ne(&self, other: &str) -> bool {
+		**self == *other
 	}
 }
 
 impl<const N: usize> PartialEq<&str> for String<N> {
 	#[inline(always)]
 	fn eq(&self, other: &&str) -> bool {
-		self == *other
+		**self == **other
+	}
+
+	#[expect(clippy::partialeq_ne_impl)]
+	#[inline(always)]
+	fn ne(&self, other: &&str) -> bool {
+		**self != **other
 	}
 }
 
@@ -572,14 +605,40 @@ impl<const N: usize> PartialEq<&str> for String<N> {
 impl<const N: usize> PartialEq<alloc::string::String> for String<N> {
 	#[inline(always)]
 	fn eq(&self, other: &alloc::string::String) -> bool {
-		self.as_str() == other.as_str()
+		*self == **other
+	}
+
+	#[expect(clippy::partialeq_ne_impl)]
+	#[inline(always)]
+	fn ne(&self, other: &alloc::string::String) -> bool {
+		*self != **other
 	}
 }
 
 impl<const N: usize, const M: usize> PartialOrd<String<M>> for String<N> {
 	#[inline(always)]
 	fn partial_cmp(&self, other: &String<M>) -> Option<Ordering> {
-		self.as_str().partial_cmp(other.as_str())
+		(**self).partial_cmp(other)
+	}
+
+	#[inline(always)]
+	fn lt(&self, other: &String<M>) -> bool {
+		**self < **other
+	}
+
+	#[inline(always)]
+	fn le(&self, other: &String<M>) -> bool {
+		**self <= **other
+	}
+
+	#[inline(always)]
+	fn gt(&self, other: &String<M>) -> bool {
+		**self > **other
+	}
+
+	#[inline(always)]
+	fn ge(&self, other: &String<M>) -> bool {
+		**self >= **other
 	}
 }
 
@@ -671,7 +730,7 @@ impl<const N: usize> PartialEq<String<N>> for alloc::string::String {
 #[inline(always)]
 #[must_use]
 #[track_caller]
-pub const fn __str<const N: usize>(s: &'static str) -> String<N> {
+pub const fn __string<const N: usize>(s: &'static str) -> String<N> {
 	assert!(s.len() <= N, "cannot construct string from literal that is longer");
 
 	// SAFETY: `s` has been tested to not contain more

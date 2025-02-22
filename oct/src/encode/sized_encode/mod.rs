@@ -56,7 +56,7 @@ use {
 /// When using [`Encode`], the size of the resulting encoding cannot always be known beforehand.
 /// This trait defines an upper bound for these sizes.
 ///
-/// Note that whilst *technically* having a size limit, [`Vec`](alloc::vec::Vec), [`String`](alloc::string::String), etc. do not implement this trait.
+/// Note that whilst *technically* having a size limit, [`alloc::vec::Vec`], [`alloc::string::String`], etc. do not implement this trait.
 /// The general rule is that the size limit must be a substantial part of a type's design to constitute implementing this trait.
 ///
 /// Also note that -- in practice -- this trait is **not** strictly enforceable.

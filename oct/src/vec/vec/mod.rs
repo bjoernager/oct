@@ -12,7 +12,7 @@ mod test;
 use crate::decode::{self, Decode, DecodeBorrowed};
 use crate::encode::{self, Encode, SizedEncode};
 use crate::error::{CollectionDecodeError, ItemDecodeError, LengthError};
-use crate::vec::IntoIter;
+use crate::vec::{clone_to_uninit_in_range, IntoIter};
 
 use core::borrow::{Borrow, BorrowMut};
 use core::cmp::Ordering;
@@ -24,11 +24,7 @@ use core::ptr::{copy_nonoverlapping, drop_in_place, null, null_mut};
 use core::slice::{self, SliceIndex};
 
 #[cfg(feature = "alloc")]
-use {
-	alloc::alloc::alloc,
-	alloc::boxed::Box,
-	core::alloc::Layout,
-};
+use alloc::boxed::Box;
 
 /// Vector container with maximum length.
 ///
@@ -370,24 +366,24 @@ impl<T, const N: usize> Vec<T, N> {
 	/// The vector is reallocated using the global allocator.
 	#[cfg(feature = "alloc")]
 	#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
+	#[inline]
 	#[must_use]
+	#[track_caller]
 	pub fn into_boxed_slice(self) -> Box<[T]> {
 		let (buf, len) = self.into_raw_parts();
 
-		unsafe {
-			let layout = Layout::array::<T>(len).unwrap();
-			let ptr = alloc(layout).cast::<T>();
+		let mut boxed = alloc::vec::Vec::with_capacity(len).into_boxed_slice();
 
-			assert!(!ptr.is_null(), "allocation failed");
+		// SAFETY: `MaybeUninit<T>` is transparent to `T`.
+		let src = buf.as_ptr() as *const T;
 
-			copy_nonoverlapping(buf.as_ptr().cast(), ptr, len);
+		let dst = boxed.as_mut_ptr();
 
-			let slice = core::ptr::slice_from_raw_parts_mut(ptr, len);
-			Box::from_raw(slice)
+		// SAFETY: `boxed` has been allocated with at least
+		// `len` elements.
+		unsafe { copy_nonoverlapping(src, dst, len) };
 
-			// `self.buf` is dropped without destructors being
-			// run.
-		}
+		boxed
 	}
 
 	/// Converts the vector into a dynamically-allocated vector.
@@ -397,7 +393,8 @@ impl<T, const N: usize> Vec<T, N> {
 	#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
 	#[inline(always)]
 	#[must_use]
-	pub fn into_alloc_vec(self) -> alloc::vec::Vec<T> {
+	#[track_caller]
+	pub fn into_vec(self) -> alloc::vec::Vec<T> {
 		self.into_boxed_slice().into_vec()
 	}
 }
@@ -405,44 +402,54 @@ impl<T, const N: usize> Vec<T, N> {
 impl<T, const N: usize> AsMut<[T]> for Vec<T, N> {
 	#[inline(always)]
 	fn as_mut(&mut self) -> &mut [T] {
-		self.as_mut_slice()
+		self
 	}
 }
 
 impl<T, const N: usize> AsRef<[T]> for Vec<T, N> {
 	#[inline(always)]
 	fn as_ref(&self) -> &[T] {
-		self.as_slice()
+		self
 	}
 }
 
 impl<T, const N: usize> Borrow<[T]> for Vec<T, N> {
 	#[inline(always)]
 	fn borrow(&self) -> &[T] {
-		self.as_slice()
+		self
 	}
 }
 
 impl<T, const N: usize> BorrowMut<[T]> for Vec<T, N> {
 	#[inline(always)]
 	fn borrow_mut(&mut self) -> &mut [T] {
-		self.as_mut_slice()
+		self
 	}
 }
 
 impl<T: Clone, const N: usize> Clone for Vec<T, N> {
 	#[inline]
 	fn clone(&self) -> Self {
+		let     len = self.len;
 		let mut buf = [const { MaybeUninit::uninit() }; N];
 
-		unsafe {
-			for i in 0x0..self.len() {
-				let value = self.get_unchecked(i).clone();
-				buf.get_unchecked_mut(i).write(value);
-			}
+		// SAFETY: `MaybeUninit<T>` is transparent to `T`.
+		let src = self.buf.as_ptr() as *const T;
 
-			Self::from_raw_parts(buf, self.len())
-		}
+		let dst = buf.as_mut_ptr() as *mut T;
+
+		// SAFETY: The range
+		//
+		// 0x0..len
+		//
+		// defines in and of itself the bounds of valid
+		// elements.
+		unsafe { clone_to_uninit_in_range(src, dst, 0x0..len) };
+
+		// SAFETY: The buffer has been initialised in the
+		// provided range - which does not extend beyond
+		// bounds.
+		unsafe { Self::from_raw_parts(buf, len) }
 	}
 }
 
@@ -486,14 +493,12 @@ impl<T: Decode, const N: usize> DecodeBorrowed<[T]> for Vec<T, N> { }
 impl<T, const N: usize> Default for Vec<T, N> {
 	#[inline(always)]
 	fn default() -> Self {
-		unsafe {
-			let buf = [const { MaybeUninit::uninit() }; N];
+		let buf = [const { MaybeUninit::uninit() }; N];
 
-			// SAFETY: The resulting vector is zero lengthed
-			// and does therefore not expose any uninitialised
-			// objects.
-			Self::from_raw_parts(buf, Default::default())
-		}
+		// SAFETY: The resulting vector is zero lengthed
+		// and does therefore not expose any uninitialised
+		// objects.
+		unsafe { Self::from_raw_parts(buf, Default::default()) }
 	}
 }
 
@@ -518,7 +523,10 @@ impl<T, const N: usize> Drop for Vec<T, N> {
 	fn drop(&mut self) {
 		// Drop every element that is currently alive.
 
-		let remaining = &raw mut *self.as_mut_slice();
+		let remaining = self.as_mut_slice() as *mut [T];
+
+		// SAFETY: Mutable references always point to alive
+		// and initialised objects.
 		unsafe { drop_in_place(remaining) };
 
 		// We do not need to ensure that `self` is in a
@@ -531,7 +539,7 @@ impl<T: Encode, const N: usize> Encode for Vec<T, N> {
 
 	#[inline(always)]
 	fn encode(&self, output: &mut encode::Output) -> Result<(), Self::Error> {
-		self.as_slice().encode(output)
+		(**self).encode(output)
 	}
 }
 
@@ -561,6 +569,7 @@ impl<T, const N: usize> FromIterator<T> for Vec<T, N> {
 
 		for item in &mut buf {
 			let Some(value) = iter.next() else { break };
+
 			item.write(value);
 
 			len += 0x1;
@@ -573,7 +582,7 @@ impl<T, const N: usize> FromIterator<T> for Vec<T, N> {
 impl<T: Hash, const N: usize> Hash for Vec<T, N> {
 	#[inline(always)]
 	fn hash<H: Hasher>(&self, state: &mut H) {
-		self.as_slice().hash(state)
+		(**self).hash(state)
 	}
 }
 
@@ -583,7 +592,7 @@ impl<T, I: SliceIndex<[T]>, const N: usize> Index<I> for Vec<T, N> {
 	#[inline(always)]
 	#[track_caller]
 	fn index(&self, index: I) -> &Self::Output {
-		Index::index(self.as_slice(), index)
+		Index::index(&**self, index)
 	}
 }
 
@@ -591,7 +600,7 @@ impl<T, I: SliceIndex<[T]>, const N: usize> IndexMut<I> for Vec<T, N> {
 	#[inline(always)]
 	#[track_caller]
 	fn index_mut(&mut self, index: I) -> &mut Self::Output {
-		IndexMut::index_mut(self.as_mut_slice(), index)
+		IndexMut::index_mut(&mut **self, index)
 	}
 }
 
@@ -602,9 +611,7 @@ impl<T, const N: usize> IntoIterator for Vec<T, N> {
 
 	#[inline(always)]
 	fn into_iter(self) -> Self::IntoIter {
-		let (buf, len) = self.into_raw_parts();
-
-		unsafe { IntoIter::new(buf, len) }
+		IntoIter::new(self)
 	}
 }
 
@@ -633,35 +640,59 @@ impl<'a, T, const N: usize> IntoIterator for &'a mut Vec<T, N> {
 impl<T: Ord, const N: usize> Ord for Vec<T, N> {
 	#[inline(always)]
 	fn cmp(&self, other: &Self) -> Ordering {
-		self.as_slice().cmp(other.as_slice())
+		(**self).cmp(&**other)
 	}
 }
 
 impl<T: PartialEq<U>, U, const N: usize, const M: usize> PartialEq<Vec<U, M>> for Vec<T, N> {
 	#[inline(always)]
 	fn eq(&self, other: &Vec<U, M>) -> bool {
-		self.as_slice() == other.as_slice()
+		**self == **other
+	}
+
+	#[expect(clippy::partialeq_ne_impl)]
+	#[inline(always)]
+	fn ne(&self, other: &Vec<U, M>) -> bool {
+		**self != **other
 	}
 }
 
 impl<T: PartialEq<U>, U, const N: usize, const M: usize> PartialEq<[U; M]> for Vec<T, N> {
 	#[inline(always)]
 	fn eq(&self, other: &[U; M]) -> bool {
-		self == other.as_slice()
+		**self == *other
+	}
+
+	#[expect(clippy::partialeq_ne_impl)]
+	#[inline(always)]
+	fn ne(&self, other: &[U; M]) -> bool {
+		**self != *other
 	}
 }
 
 impl<T: PartialEq<U>, U, const N: usize> PartialEq<[U]> for Vec<T, N> {
 	#[inline(always)]
 	fn eq(&self, other: &[U]) -> bool {
-		self.as_slice() == other
+		**self == *other
+	}
+
+	#[expect(clippy::partialeq_ne_impl)]
+	#[inline(always)]
+	fn ne(&self, other: &[U]) -> bool {
+		**self != *other
 	}
 }
 
 impl<T: PartialEq<U>, U, const N: usize> PartialEq<&[U]> for Vec<T, N> {
 	#[inline(always)]
 	fn eq(&self, other: &&[U]) -> bool {
-		self == *other
+		**self == **other
+	}
+
+	#[expect(clippy::partialeq_ne_impl)]
+	#[inline(always)]
+	fn ne(&self, other: &&[U]) -> bool {
+		**self != **other
 	}
 }
 
@@ -670,14 +701,40 @@ impl<T: PartialEq<U>, U, const N: usize> PartialEq<&[U]> for Vec<T, N> {
 impl<T: PartialEq<U>, U, const N: usize> PartialEq<alloc::vec::Vec<U>> for Vec<T, N> {
 	#[inline(always)]
 	fn eq(&self, other: &alloc::vec::Vec<U>) -> bool {
-		self.as_slice() == other.as_slice()
+		**self == **other
+	}
+
+	#[expect(clippy::partialeq_ne_impl)]
+	#[inline(always)]
+	fn ne(&self, other: &alloc::vec::Vec<U>) -> bool {
+		**self != **other
 	}
 }
 
 impl<T: PartialOrd, const N: usize, const M: usize> PartialOrd<Vec<T, M>> for Vec<T, N> {
 	#[inline(always)]
 	fn partial_cmp(&self, other: &Vec<T, M>) -> Option<Ordering> {
-		self.as_slice().partial_cmp(other.as_slice())
+		(**self).partial_cmp(&**other)
+	}
+
+	#[inline(always)]
+	fn lt(&self, other: &Vec<T, M>) -> bool {
+		**self < **other
+	}
+
+	#[inline(always)]
+	fn le(&self, other: &Vec<T, M>) -> bool {
+		**self <= **other
+	}
+
+	#[inline(always)]
+	fn gt(&self, other: &Vec<T, M>) -> bool {
+		**self > **other
+	}
+
+	#[inline(always)]
+	fn ge(&self, other: &Vec<T, M>) -> bool {
+		**self >= **other
 	}
 }
 
@@ -708,7 +765,7 @@ impl<T, const N: usize> From<Vec<T, N>> for Box<[T]> {
 impl<T, const N: usize> From<Vec<T, N>> for alloc::vec::Vec<T> {
 	#[inline(always)]
 	fn from(value: Vec<T, N>) -> Self {
-		value.into_alloc_vec()
+		value.into_vec()
 	}
 }
 
@@ -719,4 +776,38 @@ impl<T: PartialEq<U>, U, const N: usize> PartialEq<Vec<U, N>> for alloc::vec::Ve
 	fn eq(&self, other: &Vec<U, N>) -> bool {
 		self.as_slice() == other.as_slice()
 	}
+}
+
+// NOTE: This function is used by the `vec` macro
+// to circumvent itself using code which may be
+// forbidden by the macro user's lints. This func-
+// tion is sound, but please do not call it direct-
+// ly. It is not a breaking change if it is re-
+// moved.
+#[doc(hidden)]
+#[inline(always)]
+#[must_use]
+#[track_caller]
+pub const fn __vec<T, const N: usize, const M: usize>(data: [T; M]) -> Vec<T, N> {
+	assert!(M <= N, "cannot construct vector from literal that is longer");
+
+	let data = ManuallyDrop::new(data);
+
+	let mut buf = [const { MaybeUninit::uninit() }; N];
+	let     len = M;
+
+	unsafe {
+		let src = &raw const data as *const T;
+		let dst = buf.as_mut_ptr() as *mut T;
+
+		// SAFETY: The original array is not dropped after
+		// this move, and `len` is equal to the length `M`
+		// of the array. `MaybeUninit<T>` is also trans-
+		// parent to `T`.
+		copy_nonoverlapping(src, dst, len);
+	}
+
+	// SAFETY: `len` does not extend beyond the `M`
+	// elements moved from `data`.
+	unsafe { Vec::from_raw_parts(buf, len) }
 }

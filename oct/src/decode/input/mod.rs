@@ -197,20 +197,38 @@ impl Eq for Input<'_> { }
 impl PartialEq for Input<'_> {
 	#[inline(always)]
 	fn eq(&self, other: &Self) -> bool {
-		self.as_slice() == other.as_slice()
+		*self.as_slice() == *other.as_slice()
+	}
+
+	#[expect(clippy::partialeq_ne_impl)]
+	#[inline(always)]
+	fn ne(&self, other: &Self) -> bool {
+		*self.as_slice() != *other.as_slice()
 	}
 }
 
 impl PartialEq<[u8]> for Input<'_> {
 	#[inline(always)]
 	fn eq(&self, other: &[u8]) -> bool {
-		self.as_slice() == other
+		*self.as_slice() == *other
+	}
+
+	#[expect(clippy::partialeq_ne_impl)]
+	#[inline(always)]
+	fn ne(&self, other: &[u8]) -> bool {
+		*self.as_slice() != *other
 	}
 }
 
 impl PartialEq<&[u8]> for Input<'_> {
 	#[inline(always)]
 	fn eq(&self, other: &&[u8]) -> bool {
-		self.as_slice() == *other
+		*self.as_slice() == **other
+	}
+
+	#[expect(clippy::partialeq_ne_impl)]
+	#[inline(always)]
+	fn ne(&self, other: &&[u8]) -> bool {
+		*self.as_slice() != **other
 	}
 }

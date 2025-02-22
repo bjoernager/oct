@@ -30,8 +30,8 @@
 //! let mut stream = Output::new(&mut buf);
 //!
 //! // Note: For serialising multiple characters, the
-//! // `alloc::string::String` and `oct::str::
-//! // String` types are usually preferred.
+//! // `String` and `oct::str::String` types are usual-
+//! // ly preferred.
 //!
 //! 'ل'.encode(&mut stream).unwrap();
 //! 'ا'.encode(&mut stream).unwrap();
@@ -48,11 +48,13 @@
 //!
 //! If the encoded type additionally implements [`SizedEncode`], then the maximum size of any encoding is guaranteed with the [`MAX_ENCODED_SIZE`](SizedEncode::MAX_ENCODED_SIZE) constant.
 
-use crate::use_mod;
+mod encode;
+mod output;
+mod sized_encode;
 
-use_mod!(pub encode);
-use_mod!(pub output);
-use_mod!(pub sized_encode);
+pub use encode::Encode;
+pub use output::Output;
+pub use sized_encode::SizedEncode;
 
 /// Implements [`Encode`] for the provided type.
 ///

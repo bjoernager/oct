@@ -52,8 +52,10 @@ use {
 	alloc::collections::{BinaryHeap, LinkedList},
 	alloc::ffi::CString,
 	alloc::rc::Rc,
-	alloc::sync::Arc,
 };
+
+#[cfg(all(feature = "alloc", target_has_atomic = "ptr"))]
+use alloc::sync::Arc;
 
 #[cfg(any(feature = "f128", feature = "f16"))]
 use crate::oct::encode::SizedEncode;
@@ -130,7 +132,7 @@ impl<T: Decode, const N: usize> Decode for [T; N] {
 		// about it from this point on. `transmute` cannot
 		// be used here, and `transmute_unchecked` is re-
 		// served for the greedy rustc devs. >:(
-		let this = unsafe { buf.as_ptr().cast::<[T; N]>().read() };
+		let this = unsafe { (buf.as_ptr() as *const [T; N]).read() };
 		Ok(this)
 	}
 }

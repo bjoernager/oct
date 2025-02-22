@@ -8,6 +8,6 @@
 
 //! String container.
 
-use crate::use_mod;
+mod string;
 
-use_mod!(pub string);
+pub use string::{__string, String};

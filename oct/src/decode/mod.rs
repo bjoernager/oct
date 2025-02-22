@@ -32,11 +32,13 @@
 //! assert_eq!(<(u8, u8)>::decode(&mut stream).unwrap(), (0x54, 0x45));
 //! ```
 
-use crate::use_mod;
+mod decode;
+mod decode_borrowed;
+mod input;
 
-use_mod!(pub decode);
-use_mod!(pub decode_borrowed);
-use_mod!(pub input);
+pub use decode::Decode;
+pub use decode_borrowed::DecodeBorrowed;
+pub use input::Input;
 
 /// Implements [`Decode`] for the provided type.
 ///

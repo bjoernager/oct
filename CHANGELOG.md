@@ -3,6 +3,30 @@
 This is the changelog of [Oct](https://crates.io/crates/oct/).
 See `README.md` for more information.
 
+## 0.19.0
+
+* Implement `Default` for `vec::IntoIter`
+* Mark `String::is_char_boundary` with `const`
+* Update lints
+* Clean up code
+* Bump MSRV to `1.86` for `oct`
+* Bump Rust edition to `2024` for `oct` and `oct-macros` (and `oct-benchmarks`)
+* Fix `<vec::IntoIter as Iterator>::nth` not considering the current position
+* Optimise `Iterator`, `DoubleEndedIterator`, and `ExactSizeIterator` implementations for `vec::IntoIter`
+* Fix `<vec::IntoIter as Iterator>::size_hint` unsafely underflowing the size
+* Fix `<vec::IntoIter as Iterator>::nth` allowing out-of-bounds reads
+* Fix bounds on `Arc` include in `/oct/src/decode/decode/mod.rs`
+* Implement `PartialEq<Cow<str>>` for `String`
+* Bring back `vec` macro
+* Update syntax for `string` macro
+* Unmark `vec::IntoIter::{as_slice, as_mut_slice}` with `const`
+* Optimise `PartialEq`, `Eq`, and `PartialOrd` implementations
+* Rewrite `Clone` implementations for `Vec` and `vec::IntoIter`
+* Update tests
+* Unimplement `PartialEq<&mut [u8]>` for `Slot`
+* Rewrite `Vec::into_boxed_slice`
+* Rename `Vec::into_alloc_vec` to `into_vec`
+
 ## 0.18.0
 
 * Clean up code

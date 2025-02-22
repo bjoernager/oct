@@ -235,16 +235,8 @@ extern crate alloc;
 #[cfg(feature = "std")]
 extern crate std;
 
-/// Includes a module and imports it contents.
-///
-/// The provided visibility denotes the visibility of **all** imported items.
-macro_rules! use_mod {
-	($vis:vis $name:ident$(,)?) => {
-		mod $name;
-		$vis use $name::*;
-	};
-}
-pub(crate) use use_mod;
+mod prim_discriminant;
+mod prim_repr;
 
 pub mod decode;
 pub mod encode;
@@ -255,24 +247,42 @@ pub mod vec;
 #[cfg(feature = "alloc")]
 pub mod slot;
 
-use_mod!(pub prim_discriminant);
-use_mod!(pub prim_repr);
+pub use prim_discriminant::PrimDiscriminant;
+pub use prim_repr::PrimRepr;
+
+pub(crate) use prim_repr::SealedPrimRepr;
+
+/// Directly constructs a [`Vec`](crate::vec::Vec) object.
+///
+/// This macro tests at compile-time whether the provided data can fit into the inferred length.
+/// Compilation will fail if this is not the case.
+#[macro_export]
+macro_rules! vec {
+	[$value:literal; $len:expr] => {{
+		const { $crate::vec::__vec([$value; $len]) }
+	}};
+
+	[$($value:expr),+ $(,)?] => {{
+		const { $crate::vec::__vec([$($value,)*]) }
+	}};
+
+	[] => {{
+		const { $crate::vec::__vec([]) }
+	}}
+}
+
 
 /// Directly constructs a [`String`](crate::string::String) object.
 ///
-/// This macro tests at compile-time whether the string literal can fit into the specified (or inferred) length.
+/// This macro tests at compile-time whether the string literal can fit into the inferred length.
 /// Compilation will fail if this is not the case.
 #[macro_export]
 macro_rules! string {
-	($s:expr, $len:expr) => {{
-		const { $crate::string::__str::<$len>($s) }
-	}};
-
 	($s:expr) => {{
-		const { $crate::string::__str($s) }
+		const { $crate::string::__string($s) }
 	}};
 
 	() => {{
-		const { $crate::string::__str("") }
+		const { $crate::string::__string("") }
 	}};
 }

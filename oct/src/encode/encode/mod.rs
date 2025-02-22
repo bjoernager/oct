@@ -52,8 +52,6 @@ use {
 	alloc::boxed::Box,
 	alloc::collections::{BinaryHeap, LinkedList},
 	alloc::ffi::CString,
-	alloc::string::String,
-	alloc::vec::Vec,
 	alloc::rc::Rc,
 };
 
@@ -237,17 +235,17 @@ impl<T: Encode> Encode for Bound<T> {
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		match *self {
 			Self::Included(ref bound) => {
-				let Ok(_) = 0x0u8.encode(output);
+				let Ok(()) = 0x0u8.encode(output);
 				bound.encode(output).map_err(EnumEncodeError::BadField)?;
 			}
 
 			Self::Excluded(ref bound) => {
-				let Ok(_) = 0x1u8.encode(output);
+				let Ok(()) = 0x1u8.encode(output);
 				bound.encode(output).map_err(EnumEncodeError::BadField)?;
 			}
 
 			Self::Unbounded => {
-				let Ok(_) = 0x2u8.encode(output);
+				let Ok(()) = 0x2u8.encode(output);
 			}
 		}
 
@@ -481,7 +479,7 @@ impl Encode for isize {
 		let value = i16::try_from(*self)
 			.map_err(|_| IsizeEncodeError(*self))?;
 
-		let Ok(_) = value.encode(output);
+		let Ok(()) = value.encode(output);
 		Ok(())
 	}
 }
@@ -747,13 +745,13 @@ where
 
 		match *self {
 			Ok(ref v) => {
-				let Ok(_) = false.encode(output);
+				let Ok(()) = false.encode(output);
 
 				v.encode(output)?;
 			}
 
 			Err(ref e) => {
-				let Ok(_) = true.encode(output);
+				let Ok(()) = true.encode(output);
 
 				e.encode(output).map_err(Into::into)?;
 			}
@@ -797,13 +795,13 @@ impl Encode for SocketAddr {
 
 		match *self {
 			Self::V4(ref addr) => {
-				let Ok(_) = 0x4u8.encode(output);
-				let Ok(_) = addr.encode(output);
+				let Ok(()) = 0x4u8.encode(output);
+				let Ok(()) = addr.encode(output);
 			}
 
 			Self::V6(ref addr) => {
-				let Ok(_) = 0x6u8.encode(output);
-				let Ok(_) = addr.encode(output);
+				let Ok(()) = 0x6u8.encode(output);
+				let Ok(()) = addr.encode(output);
 			}
 		}
 
@@ -851,7 +849,7 @@ impl Encode for str {
 
 #[cfg(feature = "alloc")]
 #[cfg_attr(doc, doc(cfg(feature = "alloc")))]
-impl Encode for String {
+impl Encode for alloc::string::String {
 	type Error = <str as Encode>::Error;
 
 	/// See [`prim@str`].
@@ -929,14 +927,14 @@ impl Encode for usize {
 		let value = u16::try_from(*self)
 			.map_err(|_| UsizeEncodeError(*self))?;
 
-			let Ok(_) = value.encode(output);
+			let Ok(()) = value.encode(output);
 		Ok(())
 	}
 }
 
 #[cfg(feature = "alloc")]
 #[cfg_attr(doc, doc(cfg(feature = "alloc")))]
-impl<T: Encode> Encode for Vec<T> {
+impl<T: Encode> Encode for alloc::vec::Vec<T> {
 	type Error = <[T] as Encode>::Error;
 
 	#[inline(always)]

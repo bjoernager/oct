@@ -28,7 +28,7 @@ macro_rules! impl_prim_repr {
 	($ty:ty => $variant:ident) => {
 		impl ::oct::SealedPrimRepr for $ty { }
 
-		impl PrimRepr for $ty {
+		impl ::oct::PrimRepr for $ty {
 			#[inline(always)]
 			fn into_prim_discriminant(self) -> ::oct::PrimDiscriminant {
 				::oct::PrimDiscriminant::$variant(self)
