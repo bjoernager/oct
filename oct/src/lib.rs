@@ -259,15 +259,15 @@ pub(crate) use prim_repr::SealedPrimRepr;
 #[macro_export]
 macro_rules! vec {
 	[$value:literal; $len:expr] => {{
-		const { $crate::vec::__vec([$value; $len]) }
+		const { $crate::vec::Vec::new([$value; $len]) }
 	}};
 
 	[$($value:expr),+ $(,)?] => {{
-		const { $crate::vec::__vec([$($value,)*]) }
+		const { $crate::vec::Vec::new([$($value,)*]) }
 	}};
 
 	[] => {{
-		const { $crate::vec::__vec([]) }
+		const { $crate::vec::Vec::new([]) }
 	}}
 }
 

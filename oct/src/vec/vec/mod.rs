@@ -18,9 +18,9 @@ use core::borrow::{Borrow, BorrowMut};
 use core::cmp::Ordering;
 use core::fmt::{self, Debug, Formatter};
 use core::hash::{Hash, Hasher};
-use core::mem::{ManuallyDrop, MaybeUninit};
+use core::mem::{offset_of, ManuallyDrop, MaybeUninit};
 use core::ops::{Deref, DerefMut, Index, IndexMut};
-use core::ptr::{copy_nonoverlapping, drop_in_place, null, null_mut};
+use core::ptr::{copy_nonoverlapping, drop_in_place};
 use core::slice::{self, SliceIndex};
 
 #[cfg(feature = "alloc")]
@@ -66,10 +66,7 @@ impl<T, const N: usize> Vec<T, N> {
 	#[inline(always)]
 	#[must_use]
 	#[track_caller]
-	pub const fn new<const M: usize>(data: [T; M]) -> Self
-	where
-		T: Copy,
-	{
+	pub const fn new<const M: usize>(data: [T; M]) -> Self {
 		const { assert!(M <= N, "cannot construct vector from array that is longer") };
 
 		let data = ManuallyDrop::new(data);
@@ -77,26 +74,28 @@ impl<T, const N: usize> Vec<T, N> {
 		let len = M;
 
 		let buf = if N == M {
-			// Reinterpret the existing buffer.
-
-			let ptr = (&raw const data).cast::<[MaybeUninit<T>; N]>();
+			// Reuse the existing buffer.
 
 			// SAFETY: `ManuallyDrop<[T; N]>` and
 			// `[MaybeUninit<T>; N]` are both transparent to
 			// `[T; N]`. `data` can also be forgotten as its
-			// constructor will not be run.
+			// constructor is supressed. Also remember that
+			// `N` and `M` have been tested to be equal.
+			let ptr = &raw const data as *const [MaybeUninit<T>; N];
+
 			unsafe { ptr.read() }
 		} else {
 			// Reallocate the buffer to `N` elements.
 
+			// SAFETY: `ManuallyDrop<T>` is transparent to `T`.
+			let data = unsafe { &*(&raw const data as *const [T; M]) };
+
 			let mut buf = [const { MaybeUninit::uninit() }; N];
 
-			unsafe {
-				let src = (&raw const data).cast();
-				let dst = buf.as_mut_ptr();
+			let src = data.as_ptr();
+			let dst = buf.as_mut_ptr() as *mut T;
 
-				copy_nonoverlapping(src, dst, len);
-			}
+			unsafe { copy_nonoverlapping(src, dst, len) };
 
 			buf
 		};
@@ -154,13 +153,14 @@ impl<T, const N: usize> Vec<T, N> {
 
 		unsafe {
 			let src = data.as_ptr();
-			let dst = buf.as_mut_ptr().cast();
+			let dst = buf.as_mut_ptr() as *mut T;
 
+			// SAFETY: `T` implements `Copy`.
 			copy_nonoverlapping(src, dst, len);
 		}
 
 		// SAFETY: The relevant elements have been ini-
-		// tialised and `len` is not greater than `N`, as
+		// tialised, and `len` is not greater than `N` - as
 		// guaranteed by the caller.
 		unsafe { Self::from_raw_parts(buf, len) }
 	}
@@ -184,56 +184,73 @@ impl<T, const N: usize> Vec<T, N> {
 		Self { len, buf }
 	}
 
-	/// Generates a vector referencing the elements of `self`.
+	/// Generates a new vector referencing the elements of `self`.
+	///
+	/// # Safety
+	///
+	/// `len` may not be greater than `N`.
 	#[inline]
 	#[must_use]
-	pub const fn each_ref(&self) -> Vec<&T, N> {
-		let mut buf = [null::<T>(); N];
-		let len = self.len;
+	const unsafe fn each_ptr(data: *mut [MaybeUninit<T>; N], len: usize) -> [MaybeUninit<*mut T>; N] {
+		// SAFETY: Note that this function does not take
+		// any `&_` reference, so the caller can safely
+		// reinterpret the returned array as `&mut _` muta-
+		// ble  references.
+
+		debug_assert!(len <= N);
+
+		let mut buf = [const { MaybeUninit::uninit() }; N];
+
+		let src_base = data as *mut T;
+		let dst_base = buf.as_mut_ptr();
 
 		let mut i = 0x0;
 		while i < len {
-			unsafe {
-				let item = buf.as_mut_ptr().add(i);
+			// SAFETY: `i` will always be less than `self.len`
+			// and thereby within bounds as that variable is
+			// also always less than `N`.
+			let slot = unsafe { &mut *dst_base.add(i) };
 
-				let value = self.as_ptr().add(i).cast();
-				item.write(value);
-			}
+			let value = unsafe { src_base.add(i) };
+
+			slot.write(value);
 
 			i += 0x1;
 		}
 
-		// SAFETY: `*const T` has the same layout as
-		// `MaybeUninit<&T>`, and every relavent pointer
-		// has been initialised as a valid reference.
-		let buf = unsafe { (&raw const buf).cast::<[MaybeUninit<&T>; N]>().read() };
+		buf
+	}
+
+	/// Generates a new vector referencing the elements of `self`.
+	#[inline(always)]
+	#[must_use]
+	pub const fn each_ref(&self) -> Vec<&T, N> {
+		let buf = (&raw const self.buf).cast_mut();
+
+		let len = self.len;
+		let buf = unsafe { Self::each_ptr(buf, len) };
+
+		// SAFETY: every relavent pointer (i.e. the first
+		// `len`) have been initialised as valid refer-
+		// ences. The destructor of the original `buf` does
+		// also not show any substantial effects.
+		let buf = unsafe { (&raw const buf as *const [MaybeUninit<&T>; N]).read() };
 
 		unsafe { Vec::from_raw_parts(buf, len) }
 	}
 
-	/// Generates a vector mutably referencing the elements of `self`.
-	#[inline]
+	/// Generates a new vector mutably-referencing the elements of `self`.
+	#[inline(always)]
 	#[must_use]
 	pub const fn each_mut(&mut self) -> Vec<&mut T, N> {
-		let mut buf = [null_mut::<T>(); N];
 		let len = self.len;
+		let buf = unsafe { Self::each_ptr(&raw mut self.buf, len) };
 
-		let mut i = 0x0;
-		while i < len {
-			unsafe {
-				let item = buf.as_mut_ptr().add(i);
-
-				let value = self.as_mut_ptr().add(i).cast();
-				item.write(value);
-			}
-
-			i += 0x1;
-		}
-
-		// SAFETY: `*mut T` has the same layout as
-		// `MaybeUninit<&mut T>`, and every relavent point-
-		// er has been initialised as a valid reference.
-		let buf = unsafe { (&raw const buf).cast::<[MaybeUninit<&mut T>; N]>().read() };
+		// SAFETY: every relavent pointer (i.e. the first
+		// `len`) have been initialised as valid refer-
+		// ences. The destructor of the original `buf` does
+		// also not show any substantial effects.
+		let buf = unsafe { (&raw const buf as *const [MaybeUninit<&mut T>; N]).read() };
 
 		unsafe { Vec::from_raw_parts(buf, len) }
 	}
@@ -303,7 +320,8 @@ impl<T, const N: usize> Vec<T, N> {
 	#[inline(always)]
 	#[must_use]
 	pub const fn as_ptr(&self) -> *const T {
-		self.buf.as_ptr().cast()
+		// SAFETY: `MaybeUninit<T>` is transparent to `T`.
+		self.buf.as_ptr() as *const T
 	}
 
 	/// Gets a mutable pointer to the first element.
@@ -313,7 +331,8 @@ impl<T, const N: usize> Vec<T, N> {
 	#[inline(always)]
 	#[must_use]
 	pub const fn as_mut_ptr(&mut self) -> *mut T {
-		self.buf.as_mut_ptr().cast()
+		// SAFETY: `MaybeUninit<T>` is transparent to `T`.
+		self.buf.as_mut_ptr() as *mut T
 	}
 
 	/// Borrows the vector as a slice.
@@ -322,8 +341,8 @@ impl<T, const N: usize> Vec<T, N> {
 	#[inline(always)]
 	#[must_use]
 	pub const fn as_slice(&self) -> &[T] {
-		let ptr = self.as_ptr();
 		let len = self.len();
+		let ptr = self.as_ptr();
 
 		unsafe { slice::from_raw_parts(ptr, len) }
 	}
@@ -334,8 +353,8 @@ impl<T, const N: usize> Vec<T, N> {
 	#[inline(always)]
 	#[must_use]
 	pub const fn as_mut_slice(&mut self) -> &mut [T] {
-		let ptr = self.as_mut_ptr();
 		let len = self.len();
+		let ptr = self.as_mut_ptr();
 
 		unsafe { slice::from_raw_parts_mut(ptr, len) }
 	}
@@ -346,19 +365,24 @@ impl<T, const N: usize> Vec<T, N> {
 	#[inline(always)]
 	#[must_use]
 	pub const fn into_raw_parts(self) -> ([MaybeUninit<T>; N], usize) {
+		let len = self.len;
+
 		let this = ManuallyDrop::new(self);
 
-		unsafe {
+		// FIXME(const-hack): We can't just use drop glue.
+		let buf = {
 			// SAFETY: `ManuallyDrop<T>` is transparent to `T`.
-			// We also aren't dropping `this`, so we can safely
-			// move out of it.
-			let this = &*(&raw const this).cast::<Self>();
+			let base = &raw const this as *const Self;
 
-			let buf = (&raw const this.buf).read();
-			let len = this.len;
+			let off = offset_of!(Self, buf);
+			let ptr = unsafe { base.byte_add(off) as *const [MaybeUninit<T>; N] };
 
-			(buf, len)
-		}
+			// SAFETY: `this` will not be dropped with its own
+			// destructor, so we can safely move out of it.
+			unsafe { ptr.read() }
+		};
+
+		(buf, len)
 	}
 
 	/// Converts the vector into a boxed slice.
@@ -548,32 +572,23 @@ impl<T: Eq, const N: usize> Eq for Vec<T, N> { }
 impl<T, const N: usize> From<[T; N]> for Vec<T, N> {
 	#[inline(always)]
 	fn from(value: [T; N]) -> Self {
-		unsafe {
-			let buf = value
-				.as_ptr()
-				.cast::<[MaybeUninit<T>; N]>()
-				.read();
-
-			Self { len: N, buf }
-		}
+		Self::new(value)
 	}
 }
 
 impl<T, const N: usize> FromIterator<T> for Vec<T, N> {
 	#[inline]
 	fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
-		let mut iter = iter.into_iter();
-
 		let mut len = 0x0;
 		let mut buf = [const { MaybeUninit::<T>::uninit() }; N];
 
-		for item in &mut buf {
-			let Some(value) = iter.next() else { break };
-
-			item.write(value);
+		for (slot, value) in buf.iter_mut().zip(iter) {
+			slot.write(value);
 
 			len += 0x1;
 		}
+
+		// Drop the remaining elements.
 
 		Self { len, buf }
 	}
@@ -774,40 +789,6 @@ impl<T, const N: usize> From<Vec<T, N>> for alloc::vec::Vec<T> {
 impl<T: PartialEq<U>, U, const N: usize> PartialEq<Vec<U, N>> for alloc::vec::Vec<T> {
 	#[inline(always)]
 	fn eq(&self, other: &Vec<U, N>) -> bool {
-		self.as_slice() == other.as_slice()
+		**self == **other
 	}
-}
-
-// NOTE: This function is used by the `vec` macro
-// to circumvent itself using code which may be
-// forbidden by the macro user's lints. This func-
-// tion is sound, but please do not call it direct-
-// ly. It is not a breaking change if it is re-
-// moved.
-#[doc(hidden)]
-#[inline(always)]
-#[must_use]
-#[track_caller]
-pub const fn __vec<T, const N: usize, const M: usize>(data: [T; M]) -> Vec<T, N> {
-	assert!(M <= N, "cannot construct vector from literal that is longer");
-
-	let data = ManuallyDrop::new(data);
-
-	let mut buf = [const { MaybeUninit::uninit() }; N];
-	let     len = M;
-
-	unsafe {
-		let src = &raw const data as *const T;
-		let dst = buf.as_mut_ptr() as *mut T;
-
-		// SAFETY: The original array is not dropped after
-		// this move, and `len` is equal to the length `M`
-		// of the array. `MaybeUninit<T>` is also trans-
-		// parent to `T`.
-		copy_nonoverlapping(src, dst, len);
-	}
-
-	// SAFETY: `len` does not extend beyond the `M`
-	// elements moved from `data`.
-	unsafe { Vec::from_raw_parts(buf, len) }
 }

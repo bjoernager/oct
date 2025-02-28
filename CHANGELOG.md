@@ -3,6 +3,13 @@
 This is the changelog of [Oct](https://crates.io/crates/oct/).
 See `README.md` for more information.
 
+## 0.19.1
+
+* Clean up code
+* Fix double-destruction when using `<Vec<T, N> as From<[T; N]>>::from`
+* Fix `Vec::<T, _>::new` still having a `T: Copy` bound
+* Update tests
+
 ## 0.19.0
 
 * Implement `Default` for `vec::IntoIter`

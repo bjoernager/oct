@@ -862,7 +862,7 @@ impl Encode for alloc::string::String {
 #[cfg(feature = "std")]
 #[cfg_attr(doc, doc(cfg(feature = "std")))]
 impl Encode for SystemTime {
-	type Error = Infallible;
+	type Error = <i64 as Encode>::Error;
 
 	/// Encodes the time point as the nearest, signed UNIX timestamp.
 	///

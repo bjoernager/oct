@@ -22,8 +22,8 @@ use syn::{
 ///
 /// Any type can, *in theory*, be used as a discriminant.
 /// This type, however, only includes primitives.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u8)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Repr {
 	U8,
 	I8,

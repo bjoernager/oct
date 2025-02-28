@@ -12,6 +12,55 @@ use oct::vec;
 use oct::vec::Vec;
 
 #[test]
+fn test_vec_copy_from_slice() {
+	const DATA: &[i64] = &[
+		-0x67,
+		-0x51,
+		 0x07,
+		 0x0D,
+		 0x14,
+		 0x1A,
+		 0x1F,
+		 0x24,
+		 0x2A,
+		 0x2F,
+		 0x37,
+	];
+
+	assert_eq!(
+		Vec::<_, 0xB0>::copy_from_slice(DATA).as_deref(),
+		Ok([-0x67, -0x51, 0x7, 0xD, 0x14, 0x1A, 0x1F, 0x24, 0x2A, 0x2F, 0x37].as_slice()),
+	);
+}
+
+#[test]
+fn test_vec_from_array() {
+	const DATA: [i64; 0x6] = [
+		-0x1E,
+		 0x0D,
+		 0x0F,
+		 0x12,
+		 0x18,
+		 0x1C,
+	];
+
+	assert_eq!(
+		Vec::<_, 0x6>::new(DATA),
+		[-0x1E, 0xD, 0xF, 0x12, 0x18, 0x1C],
+	);
+
+	assert_eq!(
+		Vec::<_, 0x60>::new(DATA),
+		[-0x1E, 0xD, 0xF, 0x12, 0x18, 0x1C],
+	);
+
+	assert_eq!(
+		Vec::<_, 0x6>::from(DATA),
+		[-0x1E, 0xD, 0xF, 0x12, 0x18, 0x1C],
+	);
+}
+
+#[test]
 fn test_vec_from_iter() {
 	let f = |x: u32| -> u32 {
 		let x = f64::from(x);
@@ -34,7 +83,6 @@ fn test_vec_from_iter() {
 		[0, 708, 826, 19, 572, 919, 78, 431],
 	);
 }
-
 
 #[test]
 fn test_vec_macro() {

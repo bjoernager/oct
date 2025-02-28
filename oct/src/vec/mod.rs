@@ -12,7 +12,7 @@ mod into_iter;
 mod vec;
 
 pub use into_iter::IntoIter;
-pub use vec::{__vec, Vec};
+pub use vec::Vec;
 
 use core::ops::Range;
 
