@@ -9,7 +9,6 @@
 use core::convert::Infallible;
 use core::error::Error;
 use core::fmt::{self, Display, Formatter};
-use core::hint::unreachable_unchecked;
 
 /// The [`SystemTime`](std::time::SystemTime) type could not represent a UNIX timestamp.
 ///
@@ -34,8 +33,6 @@ impl Error for SystemTimeDecodeError { }
 impl From<Infallible> for SystemTimeDecodeError {
 	#[inline(always)]
 	fn from(_value: Infallible) -> Self {
-		// SAFETY: `Infallible` objects can never be con-
-		// structed.
-		unsafe { unreachable_unchecked() };
+		unreachable!()
 	}
 }

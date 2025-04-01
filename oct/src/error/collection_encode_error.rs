@@ -9,7 +9,6 @@
 use core::convert::Infallible;
 use core::error::Error;
 use core::fmt::{self, Display, Formatter};
-use core::hint::unreachable_unchecked;
 
 /// A collection could not be encoded.
 ///
@@ -60,9 +59,7 @@ where
 impl<L, I> From<Infallible> for CollectionEncodeError<L, I> {
 	#[inline(always)]
 	fn from(_value: Infallible) -> Self {
-		// SAFETY: `Infallible` objects can never be con-
-		// structed.
-		unsafe { unreachable_unchecked() };
+		unreachable!()
 	}
 }
 

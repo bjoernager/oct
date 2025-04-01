@@ -9,7 +9,6 @@
 use core::convert::Infallible;
 use core::error::Error;
 use core::fmt::{self, Display, Formatter};
-use core::hint::unreachable_unchecked;
 
 /// A collection buffer was too small to contain all of its elements.
 ///
@@ -41,8 +40,6 @@ impl Error for LengthError { }
 impl From<Infallible> for LengthError {
 	#[inline(always)]
 	fn from(_value: Infallible) -> Self {
-		// SAFETY: `Infallible` objects can never be con-
-		// structed.
-		unsafe { unreachable_unchecked() };
+		unreachable!()
 	}
 }

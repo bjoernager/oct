@@ -23,7 +23,6 @@ use core::cell::{Cell, LazyCell, RefCell, UnsafeCell};
 use core::convert::Infallible;
 use core::ffi::{CStr, c_void};
 use core::hash::BuildHasher;
-use core::hint::unreachable_unchecked;
 use core::marker::{PhantomData, PhantomPinned};
 use core::net::{
 	IpAddr,
@@ -415,9 +414,7 @@ impl Encode for Infallible {
 
 	#[inline(always)]
 	fn encode(&self, _output: &mut Output) -> Result<(), Self::Error> {
-		// SAFETY: `Infallible` objects can never be con-
-		// structed.
-		unsafe { unreachable_unchecked() }
+		unreachable!()
 	}
 }
 

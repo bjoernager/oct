@@ -74,7 +74,7 @@ impl<T, const N: usize> IntoIter<T, N> {
 		// SAFETY: It is not invalid for us to go one-past-
 		// the-end or exceed `isize::MAX`; `len` guarantees
 		// that this counter will not be used as a pointer
-		// offset if this would happen.
+		// offset in such cases.
 		self.pos = unsafe { self.pos.unchecked_add(count) };
 	}
 
@@ -95,16 +95,37 @@ impl<T, const N: usize> IntoIter<T, N> {
 		self.len = unsafe { self.len.unchecked_sub(count) };
 	}
 
-	/// Gets a slice of the remaining elements.
+	/// Gets a pointer to the current element.
+	///
+	/// If the iterator `self` is currently empty, then the returned pointer will instead be dangling.
 	#[inline(always)]
-	pub fn as_slice(&self) -> &[T] {
+	fn as_ptr(&self) -> *const T {
 		let pos = self.pos;
-		let len = self.len;
 
 		// SAFETY: `MaybeUninit<T>` is transparent to `T`.
 		let base = self.buf.as_ptr() as *const T;
 
-		let ptr = unsafe { base.add(pos) };
+		unsafe { base.add(pos) }
+	}
+
+	/// Gets a mutable pointer to the current element.
+	///
+	/// If the iterator `self` is currently empty, then the returned pointer will instead be dangling.
+	#[inline(always)]
+	fn as_mut_ptr(&mut self) -> *mut T {
+		let pos = self.pos;
+
+		// SAFETY: `MaybeUninit<T>` is transparent to `T`.
+		let base = self.buf.as_mut_ptr() as *mut T;
+
+		unsafe { base.add(pos) }
+	}
+
+	/// Gets a slice of the remaining elements.
+	#[inline(always)]
+	pub fn as_slice(&self) -> &[T] {
+		let len = self.len;
+		let ptr = self.as_ptr();
 
 		unsafe { slice::from_raw_parts(ptr, len) }
 	}
@@ -112,13 +133,8 @@ impl<T, const N: usize> IntoIter<T, N> {
 	/// Gets a mutable slice of the remaining elements.
 	#[inline(always)]
 	pub fn as_mut_slice(&mut self) -> &mut [T] {
-		let pos = self.pos;
 		let len = self.len;
-
-		// SAFETY: `MaybeUninit<T>` is transparent to `T`.
-		let base = self.buf.as_mut_ptr() as *mut T;
-
-		let ptr = unsafe { base.add(pos) };
+		let ptr = self.as_mut_ptr();
 
 		unsafe { slice::from_raw_parts_mut(ptr, len) }
 	}
@@ -180,7 +196,9 @@ impl<T, const N: usize> DoubleEndedIterator for IntoIter<T, N> {
 	fn next_back(&mut self) -> Option<Self::Item> {
 		// Test whether the iterator is empty.
 
-		if self.len == 0x0 { return None };
+		if self.len == 0x0 {
+			return None;
+		}
 
 		// Take the next value.
 
@@ -198,11 +216,6 @@ impl<T, const N: usize> DoubleEndedIterator for IntoIter<T, N> {
 
 		// Read the item value.
 
-		// SAFETY: We guarantee that all items in the range
-		//
-		// self.pos..self.pos + self.len
-		//
-		// are alive (and initialised).
 		let value = unsafe { item.read() };
 
 		// Update counters, **not** including the position.
@@ -210,64 +223,6 @@ impl<T, const N: usize> DoubleEndedIterator for IntoIter<T, N> {
 		// SAFETY: We have tested that at least one element
 		// remains.
 		unsafe { self.advance_back_by_unchecked(0x1) };
-
-		Some(value)
-	}
-
-	#[inline]
-	fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
-		// Test whether the iterator is empty.
-
-		if n >= self.len { return None };
-
-		// SAFETY: We have tested that there are at least
-		// `n + 1` elements left.
-
-		// Get the indeces of the involved items.
-
-		let end   = self.pos + self.len;
-		let index = end - n;
-		let start = index + 0x1;
-
-		// SAFETY: `MaybeUninit<T>` is transparent to `T`.
-		let base = self.buf.as_mut_ptr() as *mut T;
-
-		// Drop each skipped element in **reverse** order.
-
-		for i in (start..end).rev() {
-			let item = unsafe { base.add(i) };
-
-			// SAFETY: We guarantee that all items in the range
-			//
-			// self.pos..self.pos + self.len
-			//
-			// are alive (and initialised).
-			unsafe { drop_in_place(item) };
-		}
-
-		// Read the final value.
-
-		let item = unsafe { base.add(index) };
-
-		// SAFETY: We guarantee that all items in the range
-		//
-		// self.pos..self.pos + self.len
-		//
-		// are alive (and initialised).
-		let value = unsafe { item.read() };
-
-		// Update counters, **not** including the position.
-
-		// SAFETY: This cannot overflow as `n` has been
-		// tested to be less than `self.len`, which itself
-		// cannot be greater than `isize::MAX`.
-		let count = unsafe { n.unchecked_add(0x1) };
-
-		// SAFETY: We have tested that there are at least
-		// `count` elements left.
-		unsafe { self.advance_back_by_unchecked(count) };
-
-		// Return the value.
 
 		Some(value)
 	}
@@ -302,7 +257,9 @@ impl<T, const N: usize> Iterator for IntoIter<T, N> {
 	fn next(&mut self) -> Option<Self::Item> {
 		// Test whether the iterator is empty.
 
-		if self.len == 0x0 { return None };
+		if self.len == 0x0 {
+			return None;
+		}
 
 		// Take the next value.
 
@@ -341,19 +298,23 @@ impl<T, const N: usize> Iterator for IntoIter<T, N> {
 	fn nth(&mut self, n: usize) -> Option<Self::Item> {
 		// Test whether the iterator is empty.
 
-		if n >= self.len { return None };
+		if n >= self.len {
+			return None;
+		}
 
-		// Get the indeces of the involved items.
+		// Get the indices of the involved items.
 
-		let start = self.pos;
-		let end   = start + n;
+		let drop_start = self.pos;
+		let drop_end   = drop_start + n;
+
+		let index = drop_end;
 
 		// SAFETY: `MaybeUninit<T>` is transparent to `T`.
 		let base = self.buf.as_mut_ptr() as *mut T;
 
 		// Drop each skipped element.
 
-		for i in start..end {
+		for i in drop_start..drop_end {
 			let item = unsafe { base.add(i) };
 
 			// SAFETY: We guarantee that all items in the range
@@ -366,13 +327,7 @@ impl<T, const N: usize> Iterator for IntoIter<T, N> {
 
 		// Read the final value.
 
-		let item = unsafe { base.add(end) };
-
-		// SAFETY: We guarantee that all items in the range
-		//
-		// self.pos..self.pos + self.len
-		//
-		// are alive (and initialised).
+		let item  = unsafe { base.add(index) };
 		let value = unsafe { item.read() };
 
 		// Update counters.

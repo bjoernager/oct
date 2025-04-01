@@ -3,6 +3,12 @@
 This is the changelog of [Oct](https://crates.io/crates/oct/).
 See `README.md` for more information.
 
+## 0.20.1
+
+* Update readme
+* Clean up code
+* Update tests
+
 ## 0.20.0
 
 * Remove `Vec::set_len`

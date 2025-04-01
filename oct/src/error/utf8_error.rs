@@ -9,7 +9,6 @@
 use core::convert::Infallible;
 use core::error::Error;
 use core::fmt::{self, Display, Formatter};
-use core::hint::unreachable_unchecked;
 
 /// An invalid UTF-8 sequence was encountered.
 #[derive(Debug, Eq, PartialEq)]
@@ -34,8 +33,6 @@ impl Error for Utf8Error { }
 impl From<Infallible> for Utf8Error {
 	#[inline(always)]
 	fn from(_value: Infallible) -> Self {
-		// SAFETY: `Infallible` objects can never be con-
-		// structed.
-		unsafe { unreachable_unchecked() };
+		unreachable!()
 	}
 }

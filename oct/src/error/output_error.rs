@@ -9,7 +9,6 @@
 use core::convert::Infallible;
 use core::error::Error;
 use core::fmt::{self, Display, Formatter};
-use core::hint::unreachable_unchecked;
 
 #[derive(Debug, Eq, PartialEq)]
 #[must_use]
@@ -45,8 +44,6 @@ impl Error for OutputError { }
 impl From<Infallible> for OutputError {
 	#[inline(always)]
 	fn from(_value: Infallible) -> Self {
-		// SAFETY: `Infallible` objects can never be con-
-		// structed.
-		unsafe { unreachable_unchecked() };
+		unreachable!()
 	}
 }

@@ -75,6 +75,8 @@
 //! The following is an example of a UDP server/client for geographic data:
 //!
 //! ```rust
+//! # #[cfg(not(miri))]
+//! # {
 //! use oct::decode::Decode;
 //! use oct::encode::{Encode, SizedEncode};
 //! use oct::slot::Slot;
@@ -177,6 +179,8 @@
 //!     let response = response_buf.read().unwrap();
 //!     assert_eq!(response, Response::AtmosphericTemperature(44.4));
 //! });
+//!
+//! # }
 //! ```
 //!
 //! # Feature flags

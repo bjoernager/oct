@@ -9,7 +9,6 @@
 use core::convert::Infallible;
 use core::error::Error;
 use core::fmt::{self, Debug, Display, Formatter};
-use core::hint::unreachable_unchecked;
 
 /// A collection's item could not be decoded.
 ///
@@ -49,9 +48,7 @@ where
 impl<I, E> From<Infallible> for ItemDecodeError<I, E> {
 	#[inline(always)]
 	fn from(_value: Infallible) -> Self {
-		// SAFETY: `Infallible` objects can never be con-
-		// structed.
-		unsafe { unreachable_unchecked() };
+		unreachable!()
 	}
 }
 

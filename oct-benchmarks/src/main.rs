@@ -23,7 +23,7 @@
 use core::array;
 use core::num::NonZero;
 use rand::random;
-use rand::distributions::{Distribution, Standard};
+use rand::distr::{Distribution, StandardUniform};
 use std::time::Instant;
 use zerocopy::{Immutable, IntoBytes};
 
@@ -188,8 +188,8 @@ enum Enum {
 
 fn generate_random_data<T>(item_size: usize, value_count: usize) -> impl Iterator<Item = u8>
 where
-	T:        Immutable + IntoBytes + Sized,
-	Standard: Distribution<T>,
+	T:               Immutable + IntoBytes + Sized,
+	StandardUniform: Distribution<T>,
 {
 	let count = item_size * value_count;
 

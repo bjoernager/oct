@@ -33,8 +33,6 @@ According to my runs on an AMD Ryzen 7 3700X with default settings, these benchm
 | `decode_bool`                      |     1.037 |   1.099 |  1.041 |      1.101 |
 | **Total time** &#8594;             |    12.957 |  11.690 |  9.238 |     21.091 |
 | **Total deviation (p.c.)** &#8594; |       +40 |     +27 |     ±0 |       +128 |
-| **Total time** &#8594;             |    14.456 |  11.624 |  8.800 |     21.509 |
-| **Total deviation (p.c.)** &#8594; |       +64 |     +32 |     ±0 |       +144 |
 
 [Bincode]: https://crates.io/crates/bincode/
 [Borsh]: https://crates.io/crates/borsh/

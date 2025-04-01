@@ -270,7 +270,7 @@ impl<T, const N: usize> Vec<T, N> {
 		debug_assert!(len <= N, "cannot set length past bounds");
 
 		// SAFETY: The caller guarantees that `len` is not
-		// be freaky.
+		// freaky.
 		self.len = len
 	}
 

@@ -11,7 +11,6 @@ use crate::decode::Decode;
 use core::convert::Infallible;
 use core::error::Error;
 use core::fmt::{self, Debug, Display, Formatter};
-use core::hint::unreachable_unchecked;
 
 /// An enumeration could not be decoded.
 #[derive(Debug, Eq, PartialEq)]
@@ -72,9 +71,7 @@ where
 impl<T, D, F> From<Infallible> for EnumDecodeError<T, D, F> {
 	#[inline(always)]
 	fn from(_value: Infallible) -> Self {
-		// SAFETY: `Infallible` objects can never be con-
-		// structed.
-		unsafe { unreachable_unchecked() };
+		unreachable!()
 	}
 }
 
