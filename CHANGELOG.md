@@ -3,6 +3,15 @@
 This is the changelog of [Oct](https://crates.io/crates/oct/).
 See `README.md` for more information.
 
+## 0.20.0
+
+* Remove `Vec::set_len`
+* Rename `Vec::set_len_unchecked` to `Vec::set_len`
+* Update repository link
+* Always expose `SystemTimeDecodeError`
+* Update lints
+* Migrate Bincode benchmark to version 2.0
+
 ## 0.19.1
 
 * Clean up code

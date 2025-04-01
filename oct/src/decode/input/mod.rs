@@ -6,7 +6,6 @@
 // can obtain one at:
 // <https://mozilla.org/MPL/2.0/>.
 
-#[cfg(test)]
 mod test;
 
 use crate::error::InputError;
@@ -186,7 +185,7 @@ impl Borrow<[u8]> for Input<'_> {
 }
 
 impl Debug for Input<'_> {
-	#[inline(always)]
+	#[inline]
 	fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
 		Debug::fmt(self.as_slice(), f)
 	}

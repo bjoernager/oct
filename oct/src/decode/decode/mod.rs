@@ -6,9 +6,9 @@
 // can obtain one at:
 // <https://mozilla.org/MPL/2.0/>.
 
-#[cfg(test)]
 mod test;
 
+use crate::__cold_path;
 use crate::decode::{DecodeBorrowed, Input};
 use crate::error::{
 	CharDecodeError,
@@ -119,8 +119,14 @@ impl<T: Decode, const N: usize> Decode for [T; N] {
  		let mut buf = [const { MaybeUninit::<T>::uninit() }; N];
 
 		for (i, item) in buf.iter_mut().enumerate() {
-			let value = Decode::decode(input)
-				.map_err(|e| CollectionDecodeError::BadItem(ItemDecodeError { index: i, error: e }))?;
+			let value = match Decode::decode(input) {
+				Ok(value) => value,
+
+				Err(e) => {
+					__cold_path();
+					return Err(CollectionDecodeError::BadItem(ItemDecodeError { index: i, error: e }));
+				}
+			};
 
 			item.write(value);
 		}
@@ -283,7 +289,10 @@ impl Decode for char {
 				Ok(this)
 			},
 
-			code_point => Err(CharDecodeError { code_point }),
+			code_point => {
+				__cold_path();
+				Err(CharDecodeError { code_point })
+			},
 		}
 	}
 }
@@ -652,8 +661,7 @@ where
 
 	#[inline]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
-		let sign = bool::decode(input)
-			.map_err(EnumDecodeError::InvalidDiscriminant)?;
+		let Ok(sign) = bool::decode(input);
 
 		let this = if sign {
 			let value = Decode::decode(input)
@@ -709,7 +717,10 @@ impl Decode for SocketAddr {
 			0x4 => Ok(Self::V4(Decode::decode(input).unwrap())),
 			0x6 => Ok(Self::V6(Decode::decode(input).unwrap())),
 
-			value => Err(EnumDecodeError::UnassignedDiscriminant(value)),
+			value => {
+				__cold_path();
+				Err(EnumDecodeError::UnassignedDiscriminant(value))
+			},
 		}
 	}
 }
@@ -758,6 +769,8 @@ impl Decode for alloc::string::String {
 			Ok(s) => Ok(s),
 
 			Err(e) => {
+				__cold_path();
+
 				let i = e.utf8_error().valid_up_to();
 				let c = e.as_bytes()[i];
 
@@ -836,8 +849,14 @@ impl<T: Decode> Decode for alloc::vec::Vec<T> {
 
 		let buf = this.as_mut_ptr();
 		for i in 0x0..len {
-			let value = Decode::decode(input)
-				.map_err(|e| CollectionDecodeError::BadItem(ItemDecodeError { index: i, error: e }))?;
+			let value = match Decode::decode(input) {
+				Ok(value) => value,
+
+				Err(e) => {
+					__cold_path();
+					return Err(CollectionDecodeError::BadItem(ItemDecodeError { index: i, error: e }));
+				}
+			};
 
 			// SAFETY: Each index is within bounds (i.e. capac-
 			// ity).
@@ -922,7 +941,10 @@ macro_rules! impl_non_zero {
 				let Ok(value) = <$ty as ::oct::decode::Decode>::decode(input);
 
 				match value {
-					0x0 => Err(::oct::error::NonZeroDecodeError),
+					0x0 => {
+						__cold_path();
+						Err(::oct::error::NonZeroDecodeError)
+					},
 
 					value => {
 						let this = unsafe { ::core::num::NonZero::new_unchecked(value) };

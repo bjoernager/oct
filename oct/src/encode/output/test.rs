@@ -6,6 +6,8 @@
 // can obtain one at:
 // <https://mozilla.org/MPL/2.0/>.
 
+#![cfg(test)]
+
 use oct::encode::Output;
 use oct::error::OutputError;
 

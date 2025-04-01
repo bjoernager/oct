@@ -6,6 +6,8 @@
 // can obtain one at:
 // <https://mozilla.org/MPL/2.0/>.
 
+#![cfg(test)]
+
 use core::convert::Infallible;
 use core::marker::PhantomData;
 use core::net::{

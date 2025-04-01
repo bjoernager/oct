@@ -30,7 +30,7 @@ pub struct LengthError {
 }
 
 impl Display for LengthError {
-	#[inline(always)]
+	#[inline]
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		write!(f, "collection with ({}) remaining size cannot hold ({}) more elements", self.remaining, self.count)
 	}

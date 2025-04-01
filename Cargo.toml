@@ -1,12 +1,18 @@
+[profile.release]
+codegen-units = 1
+
+lto       = "fat"
+opt-level = 3
+
 [workspace]
 members  = ["oct", "oct-benchmarks", "oct-macros"]
 resolver = "2"
 
 [workspace.package]
-version    = "0.19.1"
+version    = "0.20.0"
 authors    = ["Gabriel Bjørnager Jensen"]
 readme     = "README.md"
-repository = "https://gitlab.com/bjoernager/oct/"
+repository = "https://mandelbrot.dk/bjoernager/oct/"
 keywords   = ["encoding", "io", "network", "no-std", "serialization"]
 categories = ["encoding", "network-programming"]
 
@@ -96,6 +102,7 @@ mismatching_type_param_order       = "warn"
 missing_errors_doc                 = "forbid"
 missing_transmute_annotations      = "forbid"
 mixed_read_write_in_expression     = "forbid"
+module_inception                   = "allow"
 must_use_unit                      = "forbid"
 mut_mut                            = "warn"
 mutex_atomic                       = "forbid"
@@ -174,9 +181,3 @@ verbose_bit_mask                   = "warn"
 verbose_file_reads                 = "warn"
 wildcard_dependencies              = "forbid"
 zero_prefixed_literal              = "allow"
-
-[profile.release]
-codegen-units = 1
-
-lto       = "fat"
-opt-level = 3

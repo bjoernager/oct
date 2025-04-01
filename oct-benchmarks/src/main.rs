@@ -128,14 +128,16 @@ macro_rules! benchmark {
 	}};
 }
 
-#[derive(oct::decode::Decode, oct::encode::Encode, oct::encode::SizedEncode)]
+#[derive(bincode::Decode, bincode::Encode)]
 #[derive(borsh::BorshSerialize)]
+#[derive(oct::decode::Decode, oct::encode::Encode, oct::encode::SizedEncode)]
 #[derive(serde::Deserialize, serde::Serialize)]
 #[repr(transparent)]
 struct Unit;
 
-#[derive(oct::decode::Decode, oct::encode::Encode, oct::encode::SizedEncode)]
+#[derive(bincode::Decode, bincode::Encode)]
 #[derive(borsh::BorshSerialize)]
+#[derive(oct::decode::Decode, oct::encode::Encode, oct::encode::SizedEncode)]
 #[derive(serde::Deserialize, serde::Serialize)]
 #[repr(transparent)]
 struct Unnamed(u32);
@@ -148,8 +150,9 @@ impl Unnamed {
 	}
 }
 
-#[derive(oct::decode::Decode, oct::encode::Encode, oct::encode::SizedEncode)]
+#[derive(bincode::Decode, bincode::Encode)]
 #[derive(borsh::BorshSerialize)]
+#[derive(oct::decode::Decode, oct::encode::Encode, oct::encode::SizedEncode)]
 #[derive(serde::Deserialize, serde::Serialize)]
 #[repr(transparent)]
 struct Named { buf: [u8; 0x8] }
@@ -173,8 +176,9 @@ impl Named {
 	}
 }
 
-#[derive(oct::decode::Decode, oct::encode::Encode, oct::encode::SizedEncode)]
+#[derive(bincode::Decode, bincode::Encode)]
 #[derive(borsh::BorshSerialize)]
+#[derive(oct::decode::Decode, oct::encode::Encode, oct::encode::SizedEncode)]
 #[derive(serde::Deserialize, serde::Serialize)]
 enum Enum {
 	Unit(Unit),
@@ -233,14 +237,15 @@ fn main() {
 			bincode: {
 				// Requires `std`.
 
-				use bincode::serialize_into;
+				use bincode::encode_into_std_write;
+				use bincode::config;
 
 				const ITEM_SIZE: usize = size_of::<u8>();
 
 				let mut buf = vec![0x00; ITEM_SIZE * VALUE_COUNT];
 
 				for _ in 0x0..VALUE_COUNT {
-					serialize_into(&mut buf, &random::<u8>()).unwrap();
+					encode_into_std_write(random::<u8>(), &mut buf, config::standard()).unwrap();
 				}
 			}
 
@@ -280,14 +285,15 @@ fn main() {
 
 		encode_u32: {
 			bincode: {
-				use bincode::serialize_into;
+				use bincode::encode_into_std_write;
+				use bincode::config;
 
 				const ITEM_SIZE: usize = size_of::<u32>();
 
 				let mut buf = vec![0x00; ITEM_SIZE * VALUE_COUNT];
 
 				for _ in 0x0..VALUE_COUNT {
-					serialize_into(&mut buf, &random::<u32>()).unwrap();
+					encode_into_std_write(random::<u32>(), &mut buf, config::standard()).unwrap();
 				}
 			}
 
@@ -327,14 +333,15 @@ fn main() {
 
 		encode_u128: {
 			bincode: {
-				use bincode::serialize_into;
+				use bincode::encode_into_std_write;
+				use bincode::config;
 
 				const ITEM_SIZE: usize = size_of::<u128>();
 
 				let mut buf = vec![0x00; ITEM_SIZE * VALUE_COUNT];
 
 				for _ in 0x0..VALUE_COUNT {
-					serialize_into(&mut buf, &random::<u128>()).unwrap();
+					encode_into_std_write(random::<u128>(), &mut buf, config::standard()).unwrap();
 				}
 			}
 
@@ -374,14 +381,15 @@ fn main() {
 
 		encode_char: {
 			bincode: {
-				use bincode::serialize_into;
+				use bincode::encode_into_std_write;
+				use bincode::config;
 
 				const ITEM_SIZE: usize = size_of::<char>();
 
 				let mut buf = vec![0x00; ITEM_SIZE * VALUE_COUNT];
 
 				for _ in 0x0..VALUE_COUNT {
-					serialize_into(&mut buf, &random::<char>()).unwrap();
+					encode_into_std_write(random::<char>(), &mut buf, config::standard()).unwrap();
 				}
 			}
 
@@ -421,14 +429,15 @@ fn main() {
 
 		encode_struct_unit: {
 			bincode: {
-				use bincode::serialize_into;
+				use bincode::encode_into_std_write;
+				use bincode::config;
 
 				const ITEM_SIZE: usize = size_of::<Unit>();
 
 				let mut buf = vec![0x00; ITEM_SIZE * VALUE_COUNT];
 
 				for _ in 0x0..VALUE_COUNT {
-					serialize_into(&mut buf, &Unit).unwrap();
+					encode_into_std_write(Unit, &mut buf, config::standard()).unwrap();
 				}
 			}
 
@@ -468,14 +477,15 @@ fn main() {
 
 		encode_struct_unnamed: {
 			bincode: {
-				use bincode::serialize_into;
+				use bincode::encode_into_std_write;
+				use bincode::config;
 
 				const ITEM_SIZE: usize = size_of::<Unnamed>();
 
 				let mut buf = vec![0x00; ITEM_SIZE * VALUE_COUNT];
 
 				for _ in 0x0..VALUE_COUNT {
-					serialize_into(&mut buf, &Unnamed::from_char(random())).unwrap();
+					encode_into_std_write(Unnamed::from_char(random()), &mut buf, config::standard()).unwrap();
 				}
 			}
 
@@ -515,14 +525,15 @@ fn main() {
 
 		encode_struct_named: {
 			bincode: {
-				use bincode::serialize_into;
+				use bincode::encode_into_std_write;
+				use bincode::config;
 
 				const ITEM_SIZE: usize = size_of::<Named>();
 
 				let mut buf = vec![0x00; ITEM_SIZE * VALUE_COUNT];
 
 				for _ in 0x0..VALUE_COUNT {
-					serialize_into(&mut buf, &Named::from_u64(random())).unwrap();
+					encode_into_std_write(Named::from_u64(random()), &mut buf, config::standard()).unwrap();
 				}
 			}
 
@@ -562,7 +573,8 @@ fn main() {
 
 		encode_enum_unit: {
 			bincode: {
-				use bincode::serialize_into;
+				use bincode::encode_into_std_write;
+				use bincode::config;
 
 				const ITEM_SIZE: usize =
 					size_of::<u32>() // discriminant
@@ -571,7 +583,7 @@ fn main() {
 				let mut buf = vec![0x00; ITEM_SIZE * VALUE_COUNT];
 
 				for _ in 0x0..VALUE_COUNT {
-					serialize_into(&mut buf, &Enum::Unit(Unit)).unwrap();
+					encode_into_std_write(Enum::Unit(Unit), &mut buf, config::standard()).unwrap();
 				}
 			}
 
@@ -617,6 +629,9 @@ fn main() {
 
 		decode_u8: {
 			bincode: {
+				use bincode::decode_from_slice;
+				use bincode::config;
+
 				const ITEM_SIZE: usize = size_of::<u8>();
 
 				let buf: Box<[_]> = generate_random_data::<u8>(ITEM_SIZE, VALUE_COUNT).collect();
@@ -624,7 +639,7 @@ fn main() {
 				for i in 0x0..VALUE_COUNT {
 					let data = array::from_ref(&buf[i]).as_slice();
 
-					let _: u8 = bincode::deserialize_from(data).unwrap();
+					let _: (u8, usize) = decode_from_slice(data, config::standard()).unwrap();
 				}
 			}
 
@@ -669,6 +684,9 @@ fn main() {
 
 		decode_non_zero_u8: {
 			bincode: {
+				use bincode::decode_from_slice;
+				use bincode::config;
+
 				const ITEM_SIZE: usize = size_of::<NonZero<u8>>();
 
 				let buf: Box<[_]> = generate_random_data::<NonZero<u8>>(ITEM_SIZE, VALUE_COUNT).collect();
@@ -676,7 +694,7 @@ fn main() {
 				for i in 0x0..VALUE_COUNT {
 					let data = array::from_ref(&buf[i]).as_slice();
 
-					let _: NonZero<u8> = bincode::deserialize_from(data).unwrap();
+					let _: (NonZero<u8>, usize) = decode_from_slice(data, config::standard()).unwrap();
 				}
 			}
 
@@ -721,6 +739,9 @@ fn main() {
 
 		decode_bool: {
 			bincode: {
+				use bincode::decode_from_slice;
+				use bincode::config;
+
 				const ITEM_SIZE: usize = size_of::<bool>();
 
 				let buf: Box<[_]> = generate_random_data::<bool>(ITEM_SIZE, VALUE_COUNT).collect();
@@ -728,7 +749,7 @@ fn main() {
 				for i in 0x0..VALUE_COUNT {
 					let data = array::from_ref(&buf[i]).as_slice();
 
-					let _: bool = bincode::deserialize_from(data).unwrap();
+					let _: (bool, usize) = decode_from_slice(data, config::standard()).unwrap();
 				}
 			}
 
@@ -754,7 +775,7 @@ fn main() {
 				let mut stream = Input::new(&buf);
 
 				for _ in 0x0..VALUE_COUNT {
-					let _ = bool::decode(&mut stream).unwrap();
+					let Ok(_) = bool::decode(&mut stream);
 				}
 			}
 

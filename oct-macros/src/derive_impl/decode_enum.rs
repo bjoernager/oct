@@ -62,7 +62,11 @@ pub fn decode_enum(data: DataEnum, repr: Repr) -> TokenStream {
 			let this = match discriminant {
 				#(#discriminants => #values,)*
 
-				value => return ::core::result::Result::Err(::oct::error::EnumDecodeError::UnassignedDiscriminant(value)),
+				value => {
+					::oct::__cold_path();
+
+					return ::core::result::Result::Err(::oct::error::EnumDecodeError::UnassignedDiscriminant(value))
+				},
 			};
 
 			::core::result::Result::Ok(this)

@@ -6,6 +6,8 @@
 // can obtain one at:
 // <https://mozilla.org/MPL/2.0/>.
 
+#![cfg(test)]
+
 use core::time::Duration;
 use oct::encode::{Encode, SizedEncode};
 use oct::error::UsizeEncodeError;

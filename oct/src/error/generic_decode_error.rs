@@ -45,8 +45,6 @@ pub enum GenericDecodeError {
 	UnassignedDiscriminant(PrimDiscriminant),
 
 	/// The [`SystemTime`](std::time::SystemTime) type was too narrow.
-	#[cfg(feature = "std")]
-	#[cfg_attr(doc, doc(cfg(feature = "std")))]
 	NarrowSystemTime(SystemTimeDecodeError),
 }
 
@@ -66,7 +64,6 @@ impl Display for GenericDecodeError {
 			Self::UnassignedDiscriminant(value)
 			=> write!(f, "discriminant value `{value:#X} has not been assigned"),
 
-			#[cfg(feature = "std")]
 			Self::NarrowSystemTime(ref e)
 			=> write!(f, "{e}"),
 		}
@@ -83,7 +80,6 @@ impl Error for GenericDecodeError {
 
 			Self::SmallBuffer(ref e) => Some(e),
 
-			#[cfg(feature = "std")]
 			Self::NarrowSystemTime(ref e) => Some(e),
 
 			_ => None,
@@ -158,8 +154,6 @@ impl From<LengthError> for GenericDecodeError {
 	}
 }
 
-#[cfg(feature = "std")]
-#[cfg_attr(doc, doc(cfg(feature = "std")))]
 impl From<SystemTimeDecodeError> for GenericDecodeError {
 	#[inline(always)]
 	fn from(value: SystemTimeDecodeError) -> Self {

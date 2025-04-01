@@ -22,7 +22,7 @@ pub struct UsizeEncodeError(
 );
 
 impl Display for UsizeEncodeError {
-	#[inline(always)]
+	#[inline]
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		write!(
 			f,

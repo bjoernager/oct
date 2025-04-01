@@ -6,6 +6,8 @@
 // can obtain one at:
 // <https://mozilla.org/MPL/2.0/>.
 
+#![cfg(test)]
+
 use oct::string;
 use oct::string::String;
 use oct::vec::Vec;

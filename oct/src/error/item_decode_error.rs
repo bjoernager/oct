@@ -29,7 +29,7 @@ where
 	I: Display,
 	E: Display,
 {
-	#[inline(always)]
+	#[inline]
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		write!(f, "could not decode item at `{}`: {}", self.index, self.error)
 	}

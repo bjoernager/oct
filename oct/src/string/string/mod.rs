@@ -6,7 +6,6 @@
 // can obtain one at:
 // <https://mozilla.org/MPL/2.0/>.
 
-#[cfg(test)]
 mod test;
 
 use crate::decode::{self, Decode, DecodeBorrowed};
@@ -437,7 +436,7 @@ impl<const N: usize> DerefMut for String<N> {
 }
 
 impl<const N: usize> Debug for String<N> {
-	#[inline(always)]
+	#[inline]
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		Debug::fmt(self.as_str(), f)
 	}
@@ -462,7 +461,7 @@ impl<const N: usize> Decode for String<N> {
 impl<const N: usize> DecodeBorrowed<str> for String<N> { }
 
 impl<const N: usize> Display for String<N> {
-	#[inline(always)]
+	#[inline]
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		Display::fmt(self.as_str(), f)
 	}

@@ -28,7 +28,7 @@ pub struct OutputError {
 }
 
 impl Display for OutputError {
-	#[inline(always)]
+	#[inline]
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		write!(
 			f,

@@ -22,7 +22,7 @@ pub struct IsizeEncodeError(
 );
 
 impl Display for IsizeEncodeError {
-	#[inline(always)]
+	#[inline]
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		write!(
 			f,

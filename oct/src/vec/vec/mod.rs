@@ -6,7 +6,6 @@
 // can obtain one at:
 // <https://mozilla.org/MPL/2.0/>.
 
-#[cfg(test)]
 mod test;
 
 use crate::decode::{self, Decode, DecodeBorrowed};
@@ -255,31 +254,9 @@ impl<T, const N: usize> Vec<T, N> {
 		unsafe { Vec::from_raw_parts(buf, len) }
 	}
 
-	/// Sets the length of the vector.
-	///
-	/// The provided length is tested to be no greater than the current length.
-	/// For the same operation *without* these checks, see [`set_len_unchecked`](Self::set_len_unchecked).
-	///
-	/// # Panics
-	///
-	/// The new length `len` may not be larger than `N`.
-	///
-	/// It is only valid to enlarge vectors if `T` supports being in a purely uninitialised state.
-	/// Such is permitted with e.g. [`MaybeUninit`].
-	#[inline(always)]
-	#[track_caller]
-	pub const fn set_len(&mut self, len: usize) {
-		assert!(len <= self.len(), "cannot extend length of vector");
-
-		// SAFETY: We have asserted that the new length is
-		// still within bounds.
-		unsafe { self.set_len_unchecked(len) };
-	}
-
 	/// Unsafely sets the length of the vector.
 	///
 	/// The provided length is **not** tested in any way.
-	/// For the same operation *with* these checks, see [`set_len`](Self::set_len).
 	///
 	/// # Safety
 	///
@@ -289,9 +266,11 @@ impl<T, const N: usize> Vec<T, N> {
 	/// Such is permitted by e.g. [`MaybeUninit`].
 	#[inline(always)]
 	#[track_caller]
-	pub const unsafe fn set_len_unchecked(&mut self, len: usize) {
+	pub const unsafe fn set_len(&mut self, len: usize) {
 		debug_assert!(len <= N, "cannot set length past bounds");
 
+		// SAFETY: The caller guarantees that `len` is not
+		// be freaky.
 		self.len = len
 	}
 
@@ -478,7 +457,7 @@ impl<T: Clone, const N: usize> Clone for Vec<T, N> {
 }
 
 impl<T: Debug, const N: usize> Debug for Vec<T, N> {
-	#[inline(always)]
+	#[inline]
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		Debug::fmt(self.as_slice(), f)
 	}

@@ -6,7 +6,6 @@
 // can obtain one at:
 // <https://mozilla.org/MPL/2.0/>.
 
-#[cfg(test)]
 mod test;
 
 use crate::encode::Output;

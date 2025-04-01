@@ -6,6 +6,8 @@
 // can obtain one at:
 // <https://mozilla.org/MPL/2.0/>.
 
+#![cfg(test)]
+
 use core::char;
 use oct::decode::{Decode, Input};
 use oct::encode::{Encode, SizedEncode};

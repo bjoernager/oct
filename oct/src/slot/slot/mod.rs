@@ -6,7 +6,6 @@
 // can obtain one at:
 // <https://mozilla.org/MPL/2.0/>.
 
-#[cfg(test)]
 mod test;
 
 use crate::decode::{Decode, Input};
@@ -343,8 +342,10 @@ impl<T> BorrowMut<[u8]> for Slot<T> {
 
 #[cfg_attr(doc, doc(cfg(feature = "alloc")))]
 impl<T> Debug for Slot<T> {
-	#[inline(always)]
-	fn fmt(&self, f: &mut Formatter) -> fmt::Result { write!(f, "{:?}", &**self) }
+	#[inline]
+	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+		write!(f, "{:?}", &**self)
+	}
 }
 
 #[cfg_attr(doc, doc(cfg(feature = "alloc")))]

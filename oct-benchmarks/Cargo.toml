@@ -32,16 +32,16 @@ readme.workspace     = true
 repository.workspace = true
 
 [dependencies]
-oct = { path = "../oct", version = "0.19", features = ["proc-macro"]}
+oct = { path = "../oct", version = "0.20", features = ["proc-macro"]}
 
-bincode  = "1.3.0"
-rand     = "0.8.0"
-rayon    = "1.10.0"
-zerocopy = "0.8.0"
+bincode  = "2.0"
+rand     = "0.8"
+rayon    = "1.10"
+zerocopy = "0.8"
 
-borsh = { version =  "1.5.1", features = ["derive"] }
-postcard = { version = "1.0.10", features = ["use-std"] }
-serde = { version = "1.0.214", features = ["derive"] }
+borsh    = { version = "1.5", features = ["derive"] }
+postcard = { version = "1.0", features = ["use-std"] }
+serde    = { version = "1.0", features = ["derive"] }
 
 [lints]
 workspace = true

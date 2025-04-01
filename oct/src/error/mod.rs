@@ -26,11 +26,9 @@ mod length_error;
 mod non_zero_decode_error;
 mod output_error;
 mod ref_cell_encode_error;
+mod system_time_decode_error;
 mod usize_encode_error;
 mod utf8_error;
-
-#[cfg(feature = "std")]
-mod system_time_decode_error;
 
 pub use char_decode_error::CharDecodeError;
 pub use collection_decode_error::CollectionDecodeError;
@@ -47,8 +45,6 @@ pub use length_error::LengthError;
 pub use non_zero_decode_error::NonZeroDecodeError;
 pub use output_error::OutputError;
 pub use ref_cell_encode_error::RefCellEncodeError;
+pub use system_time_decode_error::SystemTimeDecodeError;
 pub use usize_encode_error::UsizeEncodeError;
 pub use utf8_error::Utf8Error;
-
-#[cfg(feature = "std")]
-pub use system_time_decode_error::SystemTimeDecodeError;

@@ -8,7 +8,6 @@
 
 use crate::PrimRepr;
 
-#[cfg(test)]
 mod test;
 
 /// A generic-but-primitive discriminant.

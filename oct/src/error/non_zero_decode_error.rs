@@ -18,7 +18,7 @@ use core::hint::unreachable_unchecked;
 pub struct NonZeroDecodeError;
 
 impl Display for NonZeroDecodeError {
-	#[inline(always)]
+	#[inline]
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		write!(f, "expected non-zero integer but found `0`")
 	}

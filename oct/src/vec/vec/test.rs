@@ -8,6 +8,8 @@
 // can obtain one at:
 // <https://mozilla.org/MPL/2.0/>.
 
+#![cfg(test)]
+
 use oct::vec;
 use oct::vec::Vec;
 

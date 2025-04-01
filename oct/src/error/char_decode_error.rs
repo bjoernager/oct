@@ -26,7 +26,7 @@ pub struct CharDecodeError {
 }
 
 impl Display for CharDecodeError {
-	#[inline(always)]
+	#[inline]
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		write!(f, "code point U+{:04X} is not defined", self.code_point)
 	}
