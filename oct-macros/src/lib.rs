@@ -15,34 +15,43 @@ extern crate self as oct_macros;
 
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse2, parse_macro_input, DeriveInput};
-
-macro_rules! use_mod {
-	($vis:vis $name:ident) => {
-		mod $name;
-		$vis use $name::*;
-	};
-}
-pub(crate) use use_mod;
-
-use_mod!(discriminants);
-use_mod!(generic_name);
-use_mod!(impl_derive_macro);
-use_mod!(repr);
+use syn::{parse_macro_input, Data, DeriveInput};
 
 mod derive_impl;
+
+mod discriminants;
+mod repr;
+
+use discriminants::Discriminants;
+use repr::Repr;
 
 #[proc_macro_derive(Decode)]
 pub fn derive_decode(input: TokenStream) -> TokenStream {
 	let input = parse_macro_input!(input as DeriveInput);
 
-	let output = impl_derive_macro(
-		input,
-		parse2(quote! { ::oct::decode::Decode }).unwrap(),
-		None,
-		derive_impl::decode_struct,
-		derive_impl::decode_enum,
-	);
+	let self_name = input.ident;
+
+	let body = match input.data {
+		Data::Struct(data) => derive_impl::decode_struct(data),
+
+		Data::Enum(data) => {
+			let repr = Repr::get(&input.attrs).unwrap_or_default();
+
+			derive_impl::decode_enum(data, repr)
+		}
+
+		Data::Union(_) => panic!("untagged union `{self_name}` cannot derive `oct::decode::Decode`"),
+	};
+
+	let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
+
+	let output = quote! {
+		impl #impl_generics ::oct::decode::Decode for #self_name #ty_generics
+		#where_clause
+		{
+			#body
+		}
+	};
 
 	output.into()
 }
@@ -51,13 +60,29 @@ pub fn derive_decode(input: TokenStream) -> TokenStream {
 pub fn derive_encode(input: TokenStream) -> TokenStream {
 	let input = parse_macro_input!(input as DeriveInput);
 
-	let output = impl_derive_macro(
-		input,
-		parse2(quote! { ::oct::encode::Encode }).unwrap(),
-		None,
-		derive_impl::encode_struct,
-		derive_impl::encode_enum,
-	);
+	let self_name = input.ident;
+
+	let body = match input.data {
+		Data::Struct(data) => derive_impl::encode_struct(data),
+
+		Data::Enum(data) => {
+			let repr = Repr::get(&input.attrs).unwrap_or_default();
+
+			derive_impl::encode_enum(data, repr)
+		}
+
+		Data::Union(_) => panic!("untagged union `{self_name}` cannot derive `oct::encode::Encode`"),
+	};
+
+	let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
+
+	let output = quote! {
+		impl #impl_generics ::oct::encode::Encode for #self_name #ty_generics
+		#where_clause
+		{
+			#body
+		}
+	};
 
 	output.into()
 }
@@ -66,13 +91,29 @@ pub fn derive_encode(input: TokenStream) -> TokenStream {
 pub fn derive_sized_encode(input: TokenStream) -> TokenStream {
 	let input = parse_macro_input!(input as DeriveInput);
 
-	let output = impl_derive_macro(
-		input,
-		parse2(quote! { ::oct::encode::SizedEncode }).unwrap(),
-		None,
-		derive_impl::sized_encode_struct,
-		derive_impl::sized_encode_enum,
-	);
+	let self_name = input.ident;
+
+	let body = match input.data {
+		Data::Struct(data) => derive_impl::sized_encode_struct(data),
+
+		Data::Enum(data) => {
+			let repr = Repr::get(&input.attrs).unwrap_or_default();
+
+			derive_impl::sized_encode_enum(data, repr)
+		}
+
+		Data::Union(_) => panic!("untagged union `{self_name}` cannot derive `oct::encode::SizedEncode`"),
+	};
+
+	let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
+
+	let output = quote! {
+		impl #impl_generics ::oct::encode::SizedEncode for #self_name #ty_generics
+		#where_clause
+		{
+			#body
+		}
+	};
 
 	output.into()
 }

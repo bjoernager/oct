@@ -3,6 +3,10 @@
 This is the changelog of [Oct](https://crates.io/crates/oct/).
 See `README.md` for more information.
 
+## 0.20.2
+
+* Clean up procedural macros
+
 ## 0.20.1
 
 * Update readme

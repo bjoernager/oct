@@ -9,7 +9,7 @@ members  = ["oct", "oct-benchmarks", "oct-macros"]
 resolver = "2"
 
 [workspace.package]
-version    = "0.20.1"
+version    = "0.20.2"
 authors    = ["Gabriel Bjørnager Jensen"]
 readme     = "README.md"
 repository = "https://mandelbrot.dk/bjoernager/oct/"

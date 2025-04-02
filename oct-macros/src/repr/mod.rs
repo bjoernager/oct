@@ -17,6 +17,7 @@ use syn::{
 	Type,
 	TypePath,
 };
+use syn::ext::IdentExt;
 
 /// A derivable enumeration representation.
 ///
@@ -50,19 +51,22 @@ impl Repr {
 				attr.parse_nested_meta(|meta| {
 					let ident = meta.path.require_ident()?;
 
-					if      ident == "u8"    { this = Some(Self::U8) }
-					else if ident == "i8"    { this = Some(Self::I8) }
-					else if ident == "u16"   { this = Some(Self::U16) }
-					else if ident == "i16"   { this = Some(Self::I16) }
-					else if ident == "u32"   { this = Some(Self::U32) }
-					else if ident == "i32"   { this = Some(Self::I32) }
-					else if ident == "u64"   { this = Some(Self::U64) }
-					else if ident == "i64"   { this = Some(Self::I64) }
-					else if ident == "u128"  { this = Some(Self::U128) }
-					else if ident == "i128"  { this = Some(Self::I128) }
-					else if ident == "usize" { this = Some(Self::Usize) }
-					else if ident == "isize" { this = Some(Self::Isize) }
-					else                    { panic!("`{ident}` is not a derivable enumeration representation") };
+					match &*ident.unraw().to_string() {
+						"u8"    => this = Some(Self::U8),
+						"i8"    => this = Some(Self::I8),
+						"u16"   => this = Some(Self::U16),
+						"i16"   => this = Some(Self::I16),
+						"u32"   => this = Some(Self::U32),
+						"i32"   => this = Some(Self::I32),
+						"u64"   => this = Some(Self::U64),
+						"i64"   => this = Some(Self::I64),
+						"u128"  => this = Some(Self::U128),
+						"i128"  => this = Some(Self::I128),
+						"usize" => this = Some(Self::Usize),
+						"isize" => this = Some(Self::Isize),
+
+						_ => panic!("`{ident}` is not a derivable enumeration representation"),
+					}
 
 					Ok(())
 				}).unwrap();

@@ -6,10 +6,16 @@
 // can obtain one at:
 // <https://mozilla.org/MPL/2.0/>.
 
-use crate::use_mod;
-use_mod!(pub decode_enum);
-use_mod!(pub decode_struct);
-use_mod!(pub encode_enum);
-use_mod!(pub encode_struct);
-use_mod!(pub sized_encode_enum);
-use_mod!(pub sized_encode_struct);
+mod decode_enum;
+mod decode_struct;
+mod encode_enum;
+mod encode_struct;
+mod sized_encode_enum;
+mod sized_encode_struct;
+
+pub use decode_enum::decode_enum;
+pub use decode_struct::decode_struct;
+pub use encode_enum::encode_enum;
+pub use encode_struct::encode_struct;
+pub use sized_encode_enum::sized_encode_enum;
+pub use sized_encode_struct::sized_encode_struct;

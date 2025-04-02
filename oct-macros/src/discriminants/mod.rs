@@ -53,7 +53,7 @@ impl<I: IntoIterator<Item: Borrow<Variant>>> Iterator for Discriminants<I> {
 		} else if let Some(prev) = self.prev {
 			prev
 				.checked_add(0x1)
-				.unwrap_or_else(|| panic!("overflow following discriminant `{prev:?}`"))
+				.unwrap_or_else(|| panic!("overflow following discriminant `{prev}`"))
 		} else {
 			Default::default()
 		};

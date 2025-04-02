@@ -6,45 +6,38 @@
 // can obtain one at:
 // <https://mozilla.org/MPL/2.0/>.
 
-use proc_macro2::{Span, TokenStream};
+use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{DataStruct, Fields, Ident};
+use syn::{DataStruct, Index};
 
 #[must_use]
 pub fn encode_struct(data: DataStruct) -> TokenStream {
-	let captures: Vec<_> = data
+	let commands = data
 		.fields
 		.iter()
 		.enumerate()
-		.map(|(index, _)| Ident::new(&format!("value{index}"), Span::call_site()))
-		.collect();
+		.map(|(index, field)| {
+			let name = field.ident.as_ref().map_or_else(
+				|| {
+					let index = Index::from(index);
+					quote! { #index }
+				},
 
-	let pattern = match data.fields {
-		Fields::Unit => quote! { Self },
+				|name| quote! { #name },
+			);
 
-		Fields::Unnamed(_fields) => quote! { Self(#(ref #captures, )*) },
-
-		Fields::Named(fields) => {
-			let field_names = fields
-				.named
-				.into_iter()
-				.map(|field| field.ident.unwrap());
-
-			quote! { Self { #(#field_names: ref #captures, )* } }
-		},
-	};
+			quote! {
+				::oct::encode::Encode::encode(&self.#name, stream)
+					.map_err(::core::convert::Into::<::oct::error::GenericEncodeError>::into)?;
+			}
+		});
 
 	quote! {
 		type Error = ::oct::error::GenericEncodeError;
 
 		#[inline]
 		fn encode(&self, stream: &mut ::oct::encode::Output) -> ::core::result::Result<(), Self::Error> {
-			let #pattern = *self;
-
-			#(
-				::oct::encode::Encode::encode(#captures, stream)
-					.map_err(::core::convert::Into::<::oct::error::GenericEncodeError>::into)?;
-			)*
+			#(#commands)*
 
 			::core::result::Result::Ok(())
 		}
