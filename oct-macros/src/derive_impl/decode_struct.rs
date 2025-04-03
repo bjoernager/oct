@@ -8,10 +8,10 @@
 
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{DataStruct, Fields};
+use syn::{DataStruct, Fields, Type};
 
 #[must_use]
-pub fn decode_struct(data: DataStruct) -> TokenStream {
+pub fn decode_struct(data: DataStruct, error: Type) -> TokenStream {
 	let commands = data
 		.fields
 		.iter()
@@ -23,7 +23,7 @@ pub fn decode_struct(data: DataStruct) -> TokenStream {
 			quote! {
 				#slot {
 					::oct::decode::Decode::decode(input)
-						.map_err(::core::convert::Into::<::oct::error::GenericDecodeError>::into)?
+						.map_err(::core::convert::Into::<#error>::into)?
 				},
 			}
 		});
@@ -35,7 +35,7 @@ pub fn decode_struct(data: DataStruct) -> TokenStream {
 	};
 
 	quote! {
-		type Error = ::oct::error::GenericDecodeError;
+		type Error = #error;
 
 		#[inline]
 		fn decode(input: &mut ::oct::decode::Input) -> ::core::result::Result<Self, Self::Error> {

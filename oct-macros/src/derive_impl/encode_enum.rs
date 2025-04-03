@@ -10,10 +10,16 @@ use crate::{Discriminants, Repr};
 
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
-use syn::{DataEnum, Fields, Ident, LitInt};
+use syn::{
+	DataEnum,
+	Fields,
+	Ident,
+	LitInt,
+	Type,
+};
 
 #[must_use]
-pub fn encode_enum(data: DataEnum, repr: Repr) -> TokenStream {
+pub fn encode_enum(data: DataEnum, repr: Repr, error: Type) -> TokenStream {
 	let discriminants: Vec<LitInt> = Discriminants::new(&data.variants).collect();
 
 	let captures: Vec<Vec<Ident>> = data
@@ -53,7 +59,7 @@ pub fn encode_enum(data: DataEnum, repr: Repr) -> TokenStream {
 		});
 
 	quote! {
-		type Error = ::oct::error::EnumEncodeError<<#repr as ::oct::encode::Encode>::Error, ::oct::error::GenericEncodeError>;
+		type Error = ::oct::error::EnumEncodeError<<#repr as ::oct::encode::Encode>::Error, #error>;
 
 		#[allow(unreachable_patterns)]
 		#[inline]
@@ -66,7 +72,7 @@ pub fn encode_enum(data: DataEnum, repr: Repr) -> TokenStream {
 
 						#(
 							::oct::encode::Encode::encode(#captures, stream)
-								.map_err(::core::convert::Into::<::oct::error::GenericEncodeError>::into)
+								.map_err(::core::convert::Into::<#error>::into)
 								.map_err(::oct::error::EnumEncodeError::BadField)?;
 						)*
 					}

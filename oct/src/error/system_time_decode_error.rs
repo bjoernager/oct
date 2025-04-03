@@ -6,6 +6,8 @@
 // can obtain one at:
 // <https://mozilla.org/MPL/2.0/>.
 
+#![cfg(feature = "std")]
+
 use core::convert::Infallible;
 use core::error::Error;
 use core::fmt::{self, Display, Formatter};
@@ -14,6 +16,7 @@ use core::fmt::{self, Display, Formatter};
 ///
 /// Note that a UNIX timestamp is here defined as a signed, 64-bit integer denoting a difference of time to 1 january 1970, as measured in Greenwich using seconds.
 /// This error should therefore not occur on systems that use the same or a more precise counter.
+#[cfg_attr(doc, doc(cfg(feature = "std")))]
 #[derive(Debug, Eq, PartialEq)]
 #[must_use]
 pub struct SystemTimeDecodeError {
@@ -21,6 +24,7 @@ pub struct SystemTimeDecodeError {
 	pub timestamp: i64,
 }
 
+#[cfg_attr(doc, doc(cfg(feature = "std")))]
 impl Display for SystemTimeDecodeError {
 	#[inline]
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
@@ -28,8 +32,10 @@ impl Display for SystemTimeDecodeError {
 	}
 }
 
+#[cfg_attr(doc, doc(cfg(feature = "std")))]
 impl Error for SystemTimeDecodeError { }
 
+#[cfg_attr(doc, doc(cfg(feature = "std")))]
 impl From<Infallible> for SystemTimeDecodeError {
 	#[inline(always)]
 	fn from(_value: Infallible) -> Self {

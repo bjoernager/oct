@@ -42,7 +42,13 @@ pub use input::Input;
 
 /// Implements [`Decode`] for the provided type.
 ///
-/// This macro assumes the same format used by the equivalent [`Encode`](derive@crate::encode::Encode) macro.
+/// This derive macro assumes the same format used by the equivalent [`Encode`](derive@crate::encode::Encode) derive macro.
+///
+/// By default, this macro assumes that all fields implement <code>Decode&lt;[Error]: [Into]&lt;[GenericDecodeError]&gt;&gt;</code>.
+/// If this is **not** the case, then the `#[oct(decode_error = T)` attribute should be used for the desired error `T` on the deriving type.
+///
+/// [Error]: Encode::Error
+/// [GenericDecodeError]: crate::error::GenericDecodeError
 #[cfg(feature = "proc-macro")]
 #[cfg_attr(doc, doc(cfg(feature = "proc-macro")))]
 #[doc(inline)]

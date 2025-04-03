@@ -58,13 +58,13 @@ pub use sized_encode::SizedEncode;
 
 /// Implements [`Encode`] for the provided type.
 ///
-/// This derive macro assumes that all fields implement <code>Encode&lt;[Error]: [Into]&lt;[GenericEncodeError]&gt;&gt;</code>.
-/// If this is **not** the case, then the trait should be implemented manually instead.
+/// This derive macro, by default, assumes that all fields implement <code>Encode&lt;[Error]: [Into]&lt;[GenericEncodeError]&gt;&gt;</code>.
+/// If this is **not** the case, then the `#[oct(encode_error = T)` attribute should be used for the desired error `T` on the deriving type.
 ///
 /// [Error]: Encode::Error
 /// [GenericEncodeError]: crate::error::GenericEncodeError
 ///
-/// Do also consider deriving [`SizedEncode`](derive@SizedEncode) -- if possible.
+/// Do also consider deriving [`SizedEncode`](derive@SizedEncode) -- if appropriate.
 ///
 /// # Structs
 ///

@@ -177,6 +177,49 @@ fn test_decode_derive() {
 }
 
 #[test]
+fn test_decode_derive_custom_error() {
+	#[derive(Debug, Eq, PartialEq)]
+	struct Error;
+
+	#[derive(Debug, Eq, PartialEq)]
+	struct Foo(pub u8);
+
+	impl Decode for Foo {
+		type Error = Error;
+
+		fn decode(input: &mut Input) -> Result<Self, Self::Error> {
+			let Ok(value) = u8::decode(input);
+
+			if value % 0x2 != 0x0 {
+				return Err(Error);
+			}
+
+			let this = Self(value);
+			Ok(this)
+		}
+	}
+
+	#[derive(Debug, Decode, Eq, PartialEq)]
+	#[oct(decode_error = Error)]
+	struct Bar(Foo);
+
+	test! {
+		Foo {
+			[0x00] => Ok(Foo(0x00)),
+			[0x02] => Ok(Foo(0x02)),
+			[0x80] => Ok(Foo(0x80)),
+			[0x7F] => Err(Error),
+		}
+
+		Bar {
+			[0x00] => Ok(Bar(Foo(0x00))),
+			[0xFE] => Ok(Bar(Foo(0xFE))),
+			[0xFF] => Err(Error),
+		}
+	}
+}
+
+#[test]
 fn test_decode_oct_vec_long_len() {
 	let data = [
 		0xFF, 0xFF,

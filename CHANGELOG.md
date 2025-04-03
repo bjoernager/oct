@@ -3,6 +3,11 @@
 This is the changelog of [Oct](https://crates.io/crates/oct/).
 See `README.md` for more information.
 
+## 0.21.0
+
+* Again lock `SystemTimeDecodeError` behind the `std` feature
+* Support custom error types when deriving `Encode` and `Decode`
+
 ## 0.20.2
 
 * Clean up procedural macros

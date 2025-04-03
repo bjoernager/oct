@@ -15,7 +15,6 @@ use crate::error::{
 	CollectionDecodeError,
 	EnumDecodeError,
 	ItemDecodeError,
-	SystemTimeDecodeError,
 };
 
 use core::cell::{Cell, RefCell, UnsafeCell};
@@ -62,6 +61,8 @@ use crate::oct::encode::SizedEncode;
 
 #[cfg(feature = "std")]
 use {
+	crate::error::SystemTimeDecodeError,
+
 	core::hash::{BuildHasher, Hash},
 
 	std::collections::{HashMap, HashSet},

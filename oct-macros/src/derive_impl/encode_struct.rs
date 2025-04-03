@@ -8,10 +8,10 @@
 
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{DataStruct, Index};
+use syn::{DataStruct, Index, Type};
 
 #[must_use]
-pub fn encode_struct(data: DataStruct) -> TokenStream {
+pub fn encode_struct(data: DataStruct, error: Type) -> TokenStream {
 	let commands = data
 		.fields
 		.iter()
@@ -28,12 +28,12 @@ pub fn encode_struct(data: DataStruct) -> TokenStream {
 
 			quote! {
 				::oct::encode::Encode::encode(&self.#name, stream)
-					.map_err(::core::convert::Into::<::oct::error::GenericEncodeError>::into)?;
+					.map_err(::core::convert::Into::<#error>::into)?;
 			}
 		});
 
 	quote! {
-		type Error = ::oct::error::GenericEncodeError;
+		type Error = #error;
 
 		#[inline]
 		fn encode(&self, stream: &mut ::oct::encode::Output) -> ::core::result::Result<(), Self::Error> {

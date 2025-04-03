@@ -13,7 +13,6 @@ use crate::error::{
 	ItemDecodeError,
 	NonZeroDecodeError,
 	LengthError,
-	SystemTimeDecodeError,
 	Utf8Error,
 };
 
@@ -21,13 +20,16 @@ use core::convert::Infallible;
 use core::error::Error;
 use core::fmt::{self, Display, Formatter};
 
+#[cfg(feature = "std")]
+use crate::error::SystemTimeDecodeError;
+
 /// A generic decoding error type.
 ///
 /// The intended use of this type is by [derived](derive@crate::decode::Decode) implementations of [`crate::decode::Decode`].
 /// Manual implementors are recommended to use a custom or less generic type for the sake of efficiency.
 #[must_use]
 #[non_exhaustive]
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub enum GenericDecodeError {
 	/// A string contained a non-UTF-8 sequence.
 	BadString(Utf8Error),
@@ -43,6 +45,8 @@ pub enum GenericDecodeError {
 	/// The contained value denotes the raw, numerical value of the discriminant.
 	UnassignedDiscriminant(PrimDiscriminant),
 
+	#[cfg(feature = "std")]
+	#[cfg_attr(doc, doc(cfg(feature = "std")))]
 	/// The [`SystemTime`](std::time::SystemTime) type was too narrow.
 	NarrowSystemTime(SystemTimeDecodeError),
 }
@@ -63,6 +67,8 @@ impl Display for GenericDecodeError {
 			Self::UnassignedDiscriminant(value)
 			=> write!(f, "discriminant value `{value:#X} has not been assigned"),
 
+			#[cfg(feature = "std")]
+			#[cfg_attr(doc, doc(cfg(feature = "std")))]
 			Self::NarrowSystemTime(ref e)
 			=> write!(f, "{e}"),
 		}
@@ -79,6 +85,8 @@ impl Error for GenericDecodeError {
 
 			Self::SmallBuffer(ref e) => Some(e),
 
+			#[cfg(feature = "std")]
+			#[cfg_attr(doc, doc(cfg(feature = "std")))]
 			Self::NarrowSystemTime(ref e) => Some(e),
 
 			_ => None,
@@ -91,7 +99,7 @@ where
 	L: Into<Self>,
 	I: Into<Self>,
 {
-	#[inline(always)]
+	#[inline]
 	fn from(value: CollectionDecodeError<L, I>) -> Self {
 		use CollectionDecodeError as Error;
 
@@ -109,7 +117,7 @@ where
 	D: Into<Self>,
 	F: Into<Self>,
 {
-	#[inline(always)]
+	#[inline]
 	fn from(value: EnumDecodeError<T, D, F>) -> Self {
 		use EnumDecodeError as Error;
 
@@ -151,6 +159,8 @@ impl From<LengthError> for GenericDecodeError {
 	}
 }
 
+#[cfg(feature = "std")]
+#[cfg_attr(doc, doc(cfg(feature = "std")))]
 impl From<SystemTimeDecodeError> for GenericDecodeError {
 	#[inline(always)]
 	fn from(value: SystemTimeDecodeError) -> Self {

@@ -17,7 +17,7 @@ use crate::error::{
 use core::cell::BorrowError;
 use core::convert::Infallible;
 use core::error::Error;
-use core::fmt::{self, Display, Formatter};
+use core::fmt::{self, Debug, Display, Formatter};
 
 /// A generic encoding error type.
 ///
@@ -65,8 +65,6 @@ impl Error for GenericEncodeError {
 		}
 	}
 }
-
-impl Eq for GenericEncodeError { }
 
 impl From<BorrowError> for GenericEncodeError {
 	#[inline(always)]

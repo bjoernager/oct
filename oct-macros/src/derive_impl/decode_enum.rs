@@ -11,10 +11,10 @@ use crate::{Discriminants, Repr};
 use core::iter;
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{DataEnum, Fields};
+use syn::{DataEnum, Fields, Type};
 
 #[must_use]
-pub fn decode_enum(data: DataEnum, repr: Repr) -> TokenStream {
+pub fn decode_enum(data: DataEnum, repr: Repr, error: Type) -> TokenStream {
 	let discriminants: Vec<_> = Discriminants::new(&data.variants).collect();
 
 	let values = data
@@ -26,7 +26,7 @@ pub fn decode_enum(data: DataEnum, repr: Repr) -> TokenStream {
 			let commands = iter::repeat_n(
 				quote! {
 					::oct::decode::Decode::decode(stream)
-						.map_err(::core::convert::Into::<::oct::error::GenericDecodeError>::into)
+						.map_err(::core::convert::Into::<#error>::into)
 						.map_err(::oct::error::EnumDecodeError::BadField)?
 				},
 				variant.fields.len(),
@@ -49,7 +49,7 @@ pub fn decode_enum(data: DataEnum, repr: Repr) -> TokenStream {
 		});
 
 	quote! {
-		type Error = ::oct::error::EnumDecodeError<#repr, <#repr as ::oct::decode::Decode>::Error, ::oct::error::GenericDecodeError>;
+		type Error = ::oct::error::EnumDecodeError<#repr, <#repr as ::oct::decode::Decode>::Error, #error>;
 
 		#[inline]
 		fn decode(stream: &mut ::oct::decode::Input) -> ::core::result::Result<Self, Self::Error> {
