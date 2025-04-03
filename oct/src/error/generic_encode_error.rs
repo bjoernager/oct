@@ -66,6 +66,8 @@ impl Error for GenericEncodeError {
 	}
 }
 
+impl Eq for GenericEncodeError { }
+
 impl From<BorrowError> for GenericEncodeError {
 	#[inline(always)]
 	fn from(value: BorrowError) -> Self {

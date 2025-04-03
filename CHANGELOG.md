@@ -3,6 +3,10 @@
 This is the changelog of [Oct](https://crates.io/crates/oct/).
 See `README.md` for more information.
 
+## 0.21.1
+
+* Fix `GenericDecodeError` and `GenericEncodeError` not implementing `Eq`
+
 ## 0.21.0
 
 * Again lock `SystemTimeDecodeError` behind the `std` feature

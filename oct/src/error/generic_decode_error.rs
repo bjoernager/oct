@@ -29,7 +29,7 @@ use crate::error::SystemTimeDecodeError;
 /// Manual implementors are recommended to use a custom or less generic type for the sake of efficiency.
 #[must_use]
 #[non_exhaustive]
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum GenericDecodeError {
 	/// A string contained a non-UTF-8 sequence.
 	BadString(Utf8Error),
