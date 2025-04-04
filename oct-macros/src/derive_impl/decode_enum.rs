@@ -25,7 +25,7 @@ pub fn decode_enum(data: DataEnum, repr: Repr, error: Type) -> TokenStream {
 
 			let commands = iter::repeat_n(
 				quote! {
-					::oct::decode::Decode::decode(stream)
+					::oct::decode::Decode::decode(input)
 						.map_err(::core::convert::Into::<#error>::into)
 						.map_err(::oct::error::EnumDecodeError::BadField)?
 				},
@@ -52,10 +52,10 @@ pub fn decode_enum(data: DataEnum, repr: Repr, error: Type) -> TokenStream {
 		type Error = ::oct::error::EnumDecodeError<#repr, <#repr as ::oct::decode::Decode>::Error, #error>;
 
 		#[inline]
-		fn decode(stream: &mut ::oct::decode::Input) -> ::core::result::Result<Self, Self::Error> {
+		fn decode(input: &mut ::oct::decode::Input) -> ::core::result::Result<Self, Self::Error> {
 			use ::core::result::Result;
 
-			let discriminant = <#repr as ::oct::decode::Decode>::decode(stream)
+			let discriminant = <#repr as ::oct::decode::Decode>::decode(input)
 				.map_err(::core::convert::Into::<::core::convert::Infallible>::into)
 				.map_err(::oct::error::EnumDecodeError::InvalidDiscriminant)?;
 

@@ -3,6 +3,11 @@
 This is the changelog of [Oct](https://crates.io/crates/oct/).
 See `README.md` for more information.
 
+## 0.21.2
+
+* Update tests
+* Update docs
+
 ## 0.21.1
 
 * Fix `GenericDecodeError` and `GenericEncodeError` not implementing `Eq`

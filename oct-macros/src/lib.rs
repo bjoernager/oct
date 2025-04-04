@@ -42,13 +42,13 @@ pub fn derive_decode(input: TokenStream) -> TokenStream {
 
 	for attr in &input.attrs {
 		if attr.meta.path().is_ident("oct") {
-			attr.parse_nested_meta(|meta| {
+			let _ = attr.parse_nested_meta(|meta| {
 				if meta.path.is_ident("decode_error") {
 					error = Parse::parse(meta.value()?)?;
 				}
 
 				Ok(())
-			}).unwrap();
+			});
 		}
 	}
 
@@ -88,13 +88,13 @@ pub fn derive_encode(input: TokenStream) -> TokenStream {
 
 	for attr in &input.attrs {
 		if attr.meta.path().is_ident("oct") {
-			attr.parse_nested_meta(|meta| {
+			let _ = attr.parse_nested_meta(|meta| {
 				if meta.path.is_ident("encode_error") {
 					error = Parse::parse(meta.value()?)?;
 				}
 
 				Ok(())
-			}).unwrap();
+			});
 		}
 	}
 

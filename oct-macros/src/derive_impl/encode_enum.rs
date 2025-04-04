@@ -61,17 +61,17 @@ pub fn encode_enum(data: DataEnum, repr: Repr, error: Type) -> TokenStream {
 	quote! {
 		type Error = ::oct::error::EnumEncodeError<<#repr as ::oct::encode::Encode>::Error, #error>;
 
-		#[allow(unreachable_patterns)]
+		#[expect(unreachable_patterns)]
 		#[inline]
-		fn encode(&self, stream: &mut ::oct::encode::Output) -> ::core::result::Result<(), Self::Error> {
+		fn encode(&self, output: &mut ::oct::encode::Output) -> ::core::result::Result<(), Self::Error> {
 			match *self {
 				#(
 					#patterns => {
-						<#repr as ::oct::encode::Encode>::encode(&#discriminants, stream)
+						<#repr as ::oct::encode::Encode>::encode(&#discriminants, output)
 							.map_err(::oct::error::EnumEncodeError::BadDiscriminant)?;
 
 						#(
-							::oct::encode::Encode::encode(#captures, stream)
+							::oct::encode::Encode::encode(#captures, output)
 								.map_err(::core::convert::Into::<#error>::into)
 								.map_err(::oct::error::EnumEncodeError::BadField)?;
 						)*

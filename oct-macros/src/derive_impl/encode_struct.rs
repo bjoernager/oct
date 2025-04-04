@@ -27,7 +27,7 @@ pub fn encode_struct(data: DataStruct, error: Type) -> TokenStream {
 			);
 
 			quote! {
-				::oct::encode::Encode::encode(&self.#name, stream)
+				::oct::encode::Encode::encode(&self.#name, output)
 					.map_err(::core::convert::Into::<#error>::into)?;
 			}
 		});
@@ -36,7 +36,7 @@ pub fn encode_struct(data: DataStruct, error: Type) -> TokenStream {
 		type Error = #error;
 
 		#[inline]
-		fn encode(&self, stream: &mut ::oct::encode::Output) -> ::core::result::Result<(), Self::Error> {
+		fn encode(&self, output: &mut ::oct::encode::Output) -> ::core::result::Result<(), Self::Error> {
 			#(#commands)*
 
 			::core::result::Result::Ok(())

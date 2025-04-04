@@ -115,8 +115,8 @@ fn test_encode_derive() {
 	#[repr(transparent)]
 	struct Foo(char);
 
-	#[derive(Encode, SizedEncode)]
 	#[repr(u8)]
+	#[derive(Encode, SizedEncode)]
 	enum Bar {
 		Unit = 0x45,
 

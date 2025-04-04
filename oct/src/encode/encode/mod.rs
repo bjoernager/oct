@@ -97,6 +97,7 @@ use {
 ///
 ///     type Error = Infallible;
 ///
+///     #[track_caller] // (1)
 ///     fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 ///         // Encode fields using chaining.
 ///
@@ -107,6 +108,8 @@ use {
 ///     }
 /// }
 /// ```
+///
+/// <sub>(1): In cases where `output` is empty, `encode` is expected to panic. Adding `track_caller` makes this "easier" to debug without analysing the stack trace.</sub>
 #[doc(alias("Serialise", "Serialize"))]
 pub trait Encode {
 	/// The type returned in case of error.
@@ -123,6 +126,7 @@ pub trait Encode {
 	/// # Panics
 	///
 	/// If `output` cannot contain the entirety of the resulting encoding, then this method should panic.
+	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error>;
 }
 
@@ -130,6 +134,7 @@ impl<T: Encode + ?Sized> Encode for &T {
 	type Error = T::Error;
 
 	#[inline(always)]
+	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		T::encode(self, output)
 	}
@@ -139,6 +144,7 @@ impl<T: Encode + ?Sized> Encode for &mut T {
 	type Error = T::Error;
 
 	#[inline(always)]
+	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		T::encode(self, output)
 	}
@@ -150,6 +156,7 @@ impl<T: Encode> Encode for (T, ) {
 	type Error = T::Error;
 
 	#[inline(always)]
+	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		self.0.encode(output)
 	}
@@ -162,6 +169,7 @@ impl<T: Encode, const N: usize> Encode for [T; N] {
 	///
 	/// The length `N ` is hard-coded into the type and is therefore not encoded.
 	#[inline(always)]
+	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		for (i, v) in self.iter().enumerate() {
 			v
@@ -178,6 +186,7 @@ impl<T: Encode> Encode for [T] {
 
 	/// Encodes each element sequentially with an extra length specifier (of type [`usize`]) prepended first.
 	#[inline(always)]
+	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		self
 			.len()
@@ -200,6 +209,7 @@ impl<T: Encode + ?Sized> Encode for Arc<T> {
 	type Error = T::Error;
 
 	#[inline(always)]
+	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		T::encode(self, output)
 	}
@@ -211,6 +221,7 @@ impl<T: Encode> Encode for BinaryHeap<T> {
 	type Error = <[T] as Encode>::Error;
 
 	#[inline(always)]
+	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		self.as_slice().encode(output)
 	}
@@ -221,6 +232,7 @@ impl Encode for bool {
 
 	/// Encodes the raw representationf of the boolean.
 	#[inline(always)]
+	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		u8::from(*self).encode(output)
 	}
@@ -230,6 +242,7 @@ impl<T: Encode> Encode for Bound<T> {
 	type Error = EnumEncodeError<u8, T::Error>;
 
 	#[inline(always)]
+	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		match *self {
 			Self::Included(ref bound) => {
@@ -257,6 +270,7 @@ impl<T: Encode + ?Sized> Encode for Box<T> {
 	type Error = T::Error;
 
 	#[inline(always)]
+	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		T::encode(self, output)
 	}
@@ -267,6 +281,7 @@ impl Encode for CStr {
 
 	/// Encodes the string identically to [a byte slice](slice) containing the string's byte values **excluding** the null terminator.
 	#[inline(always)]
+	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		self.to_bytes().encode(output)
 	}
@@ -279,6 +294,7 @@ impl Encode for CString {
 
 	/// See the the implementation of [`CStr`].
 	#[inline(always)]
+	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		self.as_c_str().encode(output)
 	}
@@ -288,6 +304,7 @@ impl Encode for c_void {
 	type Error = Infallible;
 
 	#[inline(always)]
+	#[track_caller]
 	fn encode(&self, _output: &mut Output) -> Result<(), Self::Error> {
 		// NOTE: Contrary to `Infallible` and/or `!`,
 		// `c_void` *can* actually be constructed (although
@@ -300,6 +317,7 @@ impl<T: Copy + Encode> Encode for Cell<T> {
 	type Error = T::Error;
 
 	#[inline(always)]
+	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		self.get().encode(output)
 	}
@@ -309,6 +327,7 @@ impl Encode for char {
 	type Error = <u32 as Encode>::Error;
 
 	#[inline(always)]
+	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		u32::from(*self).encode(output)
 	}
@@ -320,6 +339,7 @@ impl<T: Encode + ToOwned + ?Sized> Encode for Cow<'_, T> {
 	type Error = T::Error;
 
 	#[inline(always)]
+	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		T::encode(self, output)
 	}
@@ -330,6 +350,7 @@ impl Encode for Duration {
 
 	/// Encodes the duration's seconds and nanoseconds counters sequentially.
 	#[inline(always)]
+	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		self.as_secs().encode(output)?;
 		self.subsec_nanos().encode(output)?;
@@ -344,6 +365,7 @@ impl Encode for f128 {
 	type Error = Infallible;
 
 	#[inline]
+	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		output.write(&self.to_le_bytes()).unwrap();
 
@@ -357,6 +379,7 @@ impl Encode for f16 {
 	type Error = Infallible;
 
 	#[inline]
+	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		output.write(&self.to_le_bytes()).unwrap();
 
@@ -375,6 +398,7 @@ where
 	type Error = E;
 
 	#[inline(always)]
+	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		for (key, value) in self {
 			key.encode(output)?;
@@ -398,6 +422,7 @@ where
 	type Error = K::Error;
 
 	#[inline(always)]
+	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		for key in self {
 			key.encode(output)?;
@@ -413,6 +438,7 @@ impl Encode for Infallible {
 	type Error = Self;
 
 	#[inline(always)]
+	#[track_caller]
 	fn encode(&self, _output: &mut Output) -> Result<(), Self::Error> {
 		unreachable!()
 	}
@@ -425,6 +451,7 @@ impl Encode for IpAddr {
 	///
 	/// See also the implementations of [`Ipv4Addr`] and [`Ipv6Addr`].
 	#[inline(always)]
+	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		// The discriminant here is the IP version.
 
@@ -449,6 +476,7 @@ impl Encode for Ipv4Addr {
 
 	/// Encodes the address's bits in big-endian.
 	#[inline(always)]
+	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		let value = self.to_bits();
 		value.encode(output)
@@ -460,6 +488,7 @@ impl Encode for Ipv6Addr {
 
 	/// Encodes the address's bits in big-endian.
 	#[inline(always)]
+	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		let value = self.to_bits();
 		value.encode(output)
@@ -471,6 +500,7 @@ impl Encode for isize {
 
 	/// Casts `self` to [`i16`] and encodes the result.
 	#[inline]
+	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		let value = i16::try_from(*self)
 			.map_err(|_| IsizeEncodeError(*self))?;
@@ -484,6 +514,7 @@ impl<T: Encode> Encode for LazyCell<T> {
 	type Error = T::Error;
 
 	#[inline(always)]
+	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		T::encode(self, output)
 	}
@@ -495,6 +526,7 @@ impl<T: Encode> Encode for LazyLock<T> {
 	type Error = T::Error;
 
 	#[inline(always)]
+	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		T::encode(self, output)
 	}
@@ -506,6 +538,7 @@ impl<T: Encode> Encode for LinkedList<T> {
 	type Error = CollectionEncodeError<UsizeEncodeError, ItemEncodeError<usize, T::Error>>;
 
 	#[inline(always)]
+	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		self
 			.len()
@@ -528,6 +561,7 @@ impl<T: Encode + ?Sized> Encode for Mutex<T> {
 	type Error = T::Error;
 
 	#[inline(always)]
+	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		self
 			.lock()
@@ -543,6 +577,7 @@ impl<T: Encode> Encode for Option<T> {
 	/// This is `false` for `None` instances and `true` for `Some` instances.
 	///
 	/// If `Some`, then the contained value is encoded after this sign..
+	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		match *self {
 			None => {
@@ -578,6 +613,7 @@ impl Encode for OsStr {
 	///
 	/// This implementation will yield an error if the string `self` contains any non-UTF-8 octets.
 	#[inline(always)]
+	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		let data = self.as_encoded_bytes();
 
@@ -613,6 +649,7 @@ impl Encode for OsString {
 	///
 	/// See [`OsStr`]'s implementation of `Encode` for more information.
 	#[inline(always)]
+	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		self.as_os_str().encode(output)
 	}
@@ -622,6 +659,7 @@ impl<T: ?Sized> Encode for PhantomData<T> {
 	type Error = Infallible;
 
 	#[inline(always)]
+	#[track_caller]
 	fn encode(&self, _output: &mut Output) -> Result<(), Self::Error> {
 		Ok(())
 	}
@@ -631,6 +669,7 @@ impl Encode for PhantomPinned {
 	type Error = Infallible;
 
 	#[inline(always)]
+	#[track_caller]
 	fn encode(&self, _output: &mut Output) -> Result<(), Self::Error> {
 		Ok(())
 	}
@@ -640,6 +679,7 @@ impl<T: Encode> Encode for Range<T> {
 	type Error = T::Error;
 
 	#[inline(always)]
+	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		self.start.encode(output)?;
 		self.end.encode(output)?;
@@ -652,6 +692,7 @@ impl<T: Encode> Encode for RangeFrom<T> {
 	type Error = T::Error;
 
 	#[inline(always)]
+	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		self.start.encode(output)
 	}
@@ -661,6 +702,7 @@ impl Encode for RangeFull {
 	type Error = Infallible;
 
 	#[inline(always)]
+	#[track_caller]
 	fn encode(&self, _output: &mut Output) -> Result<(), Self::Error> {
 		Ok(())
 	}
@@ -670,6 +712,7 @@ impl<T: Encode> Encode for RangeInclusive<T> {
 	type Error = T::Error;
 
 	#[inline(always)]
+	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		self.start().encode(output)?;
 		self.end().encode(output)?;
@@ -682,6 +725,7 @@ impl<T: Encode> Encode for RangeTo<T> {
 	type Error = T::Error;
 
 	#[inline(always)]
+	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		self.end.encode(output)
 	}
@@ -691,6 +735,7 @@ impl<T: Encode> Encode for RangeToInclusive<T> {
 	type Error = T::Error;
 
 	#[inline(always)]
+	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		self.end.encode(output)
 	}
@@ -702,6 +747,7 @@ impl<T: Encode + ?Sized> Encode for Rc<T> {
 	type Error = T::Error;
 
 	#[inline(always)]
+	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		T::encode(self, output)
 	}
@@ -711,6 +757,7 @@ impl<T: Encode + ?Sized> Encode for RefCell<T> {
 	type Error = RefCellEncodeError<T::Error>;
 
 	#[inline(always)]
+	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		let value = self
 			.try_borrow()
@@ -735,6 +782,7 @@ where
 	///
 	/// If `Ok`, then the contained value is encoded after this sign.
 	#[inline]
+	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		// The sign here is `false` for `Ok` objects and
 		// `true` for `Err` objects.
@@ -763,6 +811,7 @@ impl<T: Encode + ?Sized> Encode for RwLock<T> {
 	type Error = T::Error;
 
 	#[inline(always)]
+	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		self
 			.read()
@@ -775,6 +824,7 @@ impl<T: Encode> Encode for Saturating<T> {
 	type Error = T::Error;
 
 	#[inline(always)]
+	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		self.0.encode(output)
 	}
@@ -786,6 +836,7 @@ impl Encode for SocketAddr {
 	/// This implementation encoded as discriminant denoting the IP version of the address (i.e. `4` for IPv4 and `6` for IPv6).
 	/// This is then followed by the respective address' own encoding (either [`SocketAddrV4`] or [`SocketAddrV6`]).
 	#[inline]
+	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		// The discriminant here is the IP version.
 
@@ -810,6 +861,7 @@ impl Encode for SocketAddrV4 {
 
 	/// Encodes the address's bits followed by the port number, both of which in big-endian.
 	#[inline(always)]
+	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		self.ip().encode(output)?;
 		self.port().encode(output)?;
@@ -823,6 +875,7 @@ impl Encode for SocketAddrV6 {
 
 	/// Encodes the address's bits followed by the port number, flow information, and scope identifier -- all of which in big-endian.
 	#[inline(always)]
+	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		self.ip().encode(output)?;
 		self.port().encode(output)?;
@@ -838,6 +891,7 @@ impl Encode for str {
 
 	/// Encodes the string identically to [a byte slice](slice) containing the string's byte values.
 	#[inline(always)]
+	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		self.as_bytes().encode(output)
 	}
@@ -850,6 +904,7 @@ impl Encode for alloc::string::String {
 
 	/// See [`prim@str`].
 	#[inline(always)]
+	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		self.as_str().encode(output)
 	}
@@ -872,6 +927,7 @@ impl Encode for SystemTime {
 	/// | `1945-05-04T18:30:00+02:00` |     -778231800 |
 	#[expect(clippy::cast_possible_wrap)]
 	#[inline]
+	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		let time = if *self >= UNIX_EPOCH {
 			let duration = self
@@ -896,6 +952,7 @@ impl Encode for () {
 	type Error = Infallible;
 
 	#[inline(always)]
+	#[track_caller]
 	fn encode(&self, _output: &mut Output) -> Result<(), Self::Error> {
 		Ok(())
 	}
@@ -905,6 +962,7 @@ impl<T: Copy + Encode> Encode for UnsafeCell<T> {
 	type Error = T::Error;
 
 	#[inline(always)]
+	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		// SAFETY: The pointer returned by `Self::get` is
 		// valid for reading for the lifetime of `self`.
@@ -919,6 +977,7 @@ impl Encode for usize {
 
 	/// Casts `self` to [`u16`] and encodes the result.
 	#[inline]
+	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		let value = u16::try_from(*self)
 			.map_err(|_| UsizeEncodeError(*self))?;
@@ -934,6 +993,7 @@ impl<T: Encode> Encode for alloc::vec::Vec<T> {
 	type Error = <[T] as Encode>::Error;
 
 	#[inline(always)]
+	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		self.as_slice().encode(output)
 	}
@@ -943,6 +1003,7 @@ impl<T: Encode> Encode for Wrapping<T> {
 	type Error = T::Error;
 
 	#[inline(always)]
+	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		self.0.encode(output)
 	}
@@ -954,6 +1015,7 @@ macro_rules! impl_numeric {
 			type Error = ::core::convert::Infallible;
 
 			#[inline]
+			#[track_caller]
 			fn encode(&self, output: &mut ::oct::encode::Output) -> ::core::result::Result<(), Self::Error> {
 				output.write(&self.to_le_bytes()).unwrap();
 
@@ -977,6 +1039,7 @@ macro_rules! impl_tuple {
 			type Error = E;
 
 			#[inline(always)]
+			#[track_caller]
 			fn encode(&self, output: &mut ::oct::encode::Output) -> ::core::result::Result<(), Self::Error> {
 				let (ref $capture, $(ref $extra_captures, )*) = *self;
 
@@ -999,6 +1062,7 @@ macro_rules! impl_non_zero {
 			type Error = <$ty as ::oct::encode::Encode>::Error;
 
 			#[inline(always)]
+			#[track_caller]
 			fn encode(&self, output: &mut ::oct::encode::Output) -> ::core::result::Result<(), Self::Error> {
 				self.get().encode(output)
 			}
@@ -1021,6 +1085,7 @@ macro_rules! impl_atomic {
 			///
 			/// The atomic object itself is read with the [`Relaxed`](core::sync::atomic::Ordering) ordering scheme.
 			#[inline(always)]
+			#[track_caller]
 			fn encode(&self, output: &mut ::oct::encode::Output) -> ::core::result::Result<(), Self::Error> {
 				use ::core::sync::atomic::Ordering;
 

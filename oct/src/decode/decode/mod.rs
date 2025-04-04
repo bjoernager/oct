@@ -95,6 +95,7 @@ pub trait Decode: Sized {
 	/// # Panics
 	///
 	/// If `input` unexpectedly terminates before a full encoding was read, then this method should panic.
+	/// #[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error>;
 }
 
@@ -104,6 +105,7 @@ impl<T: Decode> Decode for (T, ) {
 	type Error = T::Error;
 
 	#[inline(always)]
+	#[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let this = (Decode::decode(input)?, );
 		Ok(this)
@@ -114,6 +116,7 @@ impl<T: Decode, const N: usize> Decode for [T; N] {
 	type Error = CollectionDecodeError<Infallible, ItemDecodeError<usize, T::Error>>;
 
 	#[inline]
+	#[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		// Initialise the array incrementally.
 
@@ -150,6 +153,7 @@ impl<T: Decode> Decode for Arc<T> {
 	type Error = T::Error;
 
 	#[inline(always)]
+	#[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let value = Decode::decode(input)?;
 
@@ -164,6 +168,7 @@ impl<T: Decode + Ord> Decode for BinaryHeap<T> {
 	type Error = <alloc::vec::Vec<T> as Decode>::Error;
 
 	#[inline(always)]
+	#[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let v = alloc::vec::Vec::decode(input)?;
 
@@ -179,6 +184,7 @@ impl Decode for bool {
 	///
 	/// Whilst <code>[Encode](crate::encode::Encode)::[encode](crate::encode::Encode::encode)</code> will only yield the values `0` and `1`, this method clamps all values above `1`.
 	#[inline]
+	#[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let Ok(value) = u8::decode(input);
 
@@ -191,6 +197,7 @@ impl<T: Decode> Decode for Bound<T> {
 	type Error = EnumDecodeError<u8, <u8 as Decode>::Error, T::Error>;
 
 	#[inline(always)]
+	#[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let Ok(discriminant) = u8::decode(input);
 
@@ -224,6 +231,7 @@ impl<T: Decode> Decode for Box<T> {
 	type Error = T::Error;
 
 	#[inline(always)]
+	#[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let value = Decode::decode(input)?;
 
@@ -242,6 +250,7 @@ impl Decode for CString {
 	/// This implementation will always allocate one more byte than specified by the slice for the null terminator.
 	/// Note that any null value already in the data will truncate the final string.
 	#[inline(always)]
+	#[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let Ok(len) = usize::decode(input);
 
@@ -260,6 +269,7 @@ impl<T: Decode> Decode for Cell<T> {
 	type Error = T::Error;
 
 	#[inline(always)]
+	#[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let value = Decode::decode(input)?;
 
@@ -272,6 +282,7 @@ impl Decode for c_void {
 	type Error = Infallible;
 
 	#[inline(always)]
+	#[track_caller]
 	fn decode(_input: &mut Input) -> Result<Self, Self::Error> {
 		panic!("cannot deserialise `c_void` as it cannot be constructed to begin with")
 	}
@@ -281,6 +292,7 @@ impl Decode for char {
 	type Error = CharDecodeError;
 
 	#[inline]
+	#[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let Ok(code_point) = u32::decode(input);
 
@@ -308,6 +320,7 @@ where
 	type Error = T::Error;
 
 	#[inline(always)]
+	#[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let value = Decode::decode(input)?;
 
@@ -320,6 +333,7 @@ impl Decode for Duration {
 	type Error = Infallible;
 
 	#[inline(always)]
+	#[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let Ok(secs)  = Decode::decode(input);
 		let Ok(nanos) = Decode::decode(input);
@@ -335,6 +349,7 @@ impl Decode for f128 {
 	type Error = Infallible;
 
 	#[inline]
+	#[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let mut data = [Default::default(); <Self as SizedEncode>::MAX_ENCODED_SIZE];
 		input.read_into(&mut data).unwrap();
@@ -350,6 +365,7 @@ impl Decode for f16 {
 	type Error = Infallible;
 
 	#[inline]
+	#[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let mut data = [Default::default(); <Self as SizedEncode>::MAX_ENCODED_SIZE];
 		input.read_into(&mut data).unwrap();
@@ -370,6 +386,7 @@ where
 	type Error = CollectionDecodeError<Infallible, ItemDecodeError<usize, E>>;
 
 	#[inline]
+	#[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let Ok(len) = Decode::decode(input);
 
@@ -400,6 +417,7 @@ where
 	type Error = CollectionDecodeError<Infallible, ItemDecodeError<usize, K::Error>>;
 
 	#[inline]
+	#[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let Ok(len) = Decode::decode(input);
 
@@ -420,6 +438,7 @@ impl Decode for Infallible {
 	type Error = Self;
 
 	#[inline(always)]
+	#[track_caller]
 	fn decode(_input: &mut Input) -> Result<Self, Self::Error> {
 		panic!("cannot deserialise `Infallible` as it cannot be constructed to begin with")
 	}
@@ -429,6 +448,7 @@ impl Decode for IpAddr {
 	type Error = EnumDecodeError<u8, <u8 as Decode>::Error, Infallible>;
 
 	#[inline]
+	#[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let Ok(discriminant) = u8::decode(input);
 
@@ -447,6 +467,7 @@ impl Decode for Ipv4Addr {
 	type Error = Infallible;
 
 	#[inline(always)]
+	#[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let Ok(value) = Decode::decode(input);
 
@@ -459,6 +480,7 @@ impl Decode for Ipv6Addr {
 	type Error = Infallible;
 
 	#[inline(always)]
+	#[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let Ok(value) = Decode::decode(input);
 
@@ -471,6 +493,7 @@ impl Decode for isize {
 	type Error = Infallible;
 
 	#[inline(always)]
+	#[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let Ok(value) = i16::decode(input);
 
@@ -484,6 +507,7 @@ impl<T: Decode> Decode for LinkedList<T> {
 	type Error = CollectionDecodeError<Infallible, ItemDecodeError<usize, T::Error>>;
 
 	#[inline]
+	#[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let Ok(len) = usize::decode(input);
 
@@ -506,6 +530,7 @@ impl<T: Decode> Decode for Mutex<T> {
 	type Error = T::Error;
 
 	#[inline(always)]
+	#[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let value = Decode::decode(input)?;
 
@@ -519,6 +544,7 @@ impl<T: Decode> Decode for Option<T> {
 
 	#[expect(clippy::if_then_some_else_none)] // ???
 	#[inline]
+	#[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let Ok(sign) = bool::decode(input);
 
@@ -538,6 +564,7 @@ impl Decode for OsString {
 	type Error = <alloc::string::String as Decode>::Error;
 
 	#[inline(always)]
+	#[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let s: alloc::string::String = Decode::decode(input)?;
 
@@ -550,6 +577,7 @@ impl<T> Decode for PhantomData<T> {
 	type Error = Infallible;
 
 	#[inline(always)]
+	#[track_caller]
 	fn decode(_input: &mut Input) -> Result<Self, Self::Error> {
 		Ok(Self)
 	}
@@ -559,6 +587,7 @@ impl Decode for PhantomPinned {
 	type Error = Infallible;
 
 	#[inline(always)]
+	#[track_caller]
 	fn decode(_input: &mut Input) -> Result<Self, Self::Error> {
 		Ok(Self)
 	}
@@ -568,6 +597,7 @@ impl<T: Decode> Decode for Range<T> {
 	type Error = T::Error;
 
 	#[inline(always)]
+	#[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let start = Decode::decode(input)?;
 		let end   = Decode::decode(input)?;
@@ -580,6 +610,7 @@ impl<T: Decode> Decode for RangeFrom<T> {
 	type Error = T::Error;
 
 	#[inline(always)]
+	#[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let start = Decode::decode(input)?;
 
@@ -591,6 +622,7 @@ impl Decode for RangeFull {
 	type Error = Infallible;
 
 	#[inline(always)]
+	#[track_caller]
 	fn decode(_input: &mut Input) -> Result<Self, Self::Error> {
 		Ok(..)
 	}
@@ -600,6 +632,7 @@ impl<T: Decode> Decode for RangeInclusive<T> {
 	type Error = T::Error;
 
 	#[inline(always)]
+	#[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let start = Decode::decode(input)?;
 		let end   = Decode::decode(input)?;
@@ -612,6 +645,7 @@ impl<T: Decode> Decode for RangeTo<T> {
 	type Error = T::Error;
 
 	#[inline(always)]
+	#[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let end = Decode::decode(input)?;
 
@@ -623,6 +657,7 @@ impl<T: Decode> Decode for RangeToInclusive<T> {
 	type Error = T::Error;
 
 	#[inline(always)]
+	#[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let end = Decode::decode(input)?;
 
@@ -636,6 +671,7 @@ impl<T: Decode> Decode for Rc<T> {
 	type Error = T::Error;
 
 	#[inline(always)]
+	#[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		Ok(Self::new(Decode::decode(input)?))
 	}
@@ -645,6 +681,7 @@ impl<T: Decode> Decode for RefCell<T> {
 	type Error = T::Error;
 
 	#[inline(always)]
+	#[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let value = Decode::decode(input)?;
 
@@ -661,6 +698,7 @@ where
 	type Error = EnumDecodeError<bool, <bool as Decode>::Error, Err>;
 
 	#[inline]
+	#[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let Ok(sign) = bool::decode(input);
 
@@ -687,6 +725,7 @@ impl<T: Decode> Decode for RwLock<T> {
 	type Error = T::Error;
 
 	#[inline(always)]
+	#[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let value = Decode::decode(input)?;
 
@@ -699,6 +738,7 @@ impl<T: Decode> Decode for Saturating<T> {
 	type Error = T::Error;
 
 	#[inline(always)]
+	#[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let value = Decode::decode(input)?;
 
@@ -711,6 +751,7 @@ impl Decode for SocketAddr {
 	type Error = EnumDecodeError<u8, <u8 as Decode>::Error, Infallible>;
 
 	#[inline]
+	#[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let Ok(discriminant) = u8::decode(input);
 
@@ -730,6 +771,7 @@ impl Decode for SocketAddrV4 {
 	type Error = Infallible;
 
 	#[inline(always)]
+	#[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let ip   = Decode::decode(input)?;
 		let port = Decode::decode(input)?;
@@ -743,6 +785,7 @@ impl Decode for SocketAddrV6 {
 	type Error = Infallible;
 
 	#[inline(always)]
+	#[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let ip        = Decode::decode(input)?;
 		let port      = Decode::decode(input)?;
@@ -760,6 +803,7 @@ impl Decode for alloc::string::String {
 	type Error = CollectionDecodeError<Infallible, Utf8Error>;
 
 	#[inline]
+	#[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let Ok(len) = Decode::decode(input);
 
@@ -789,6 +833,7 @@ impl Decode for SystemTime {
 	type Error = SystemTimeDecodeError;
 
 	#[inline]
+	#[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let Ok(time) = i64::decode(input);
 
@@ -810,6 +855,7 @@ impl Decode for () {
 	type Error = Infallible;
 
 	#[inline(always)]
+	#[track_caller]
 	fn decode(_input: &mut Input) -> Result<Self, Self::Error> {
 		Ok(())
 	}
@@ -819,6 +865,7 @@ impl<T: Decode> Decode for UnsafeCell<T> {
 	type Error = T::Error;
 
 	#[inline(always)]
+	#[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let value = Decode::decode(input)?;
 
@@ -831,6 +878,7 @@ impl Decode for usize {
 	type Error = Infallible;
 
 	#[inline(always)]
+	#[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let Ok(value) = u16::decode(input);
 		Ok(value as Self)
@@ -843,6 +891,7 @@ impl<T: Decode> Decode for alloc::vec::Vec<T> {
 	type Error = CollectionDecodeError<Infallible, ItemDecodeError<usize, T::Error>>;
 
 	#[inline]
+	#[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let Ok(len) = Decode::decode(input);
 
@@ -875,6 +924,7 @@ impl<T: Decode> Decode for Wrapping<T> {
 	type Error = T::Error;
 
 	#[inline(always)]
+	#[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let value = Decode::decode(input)?;
 
@@ -889,6 +939,7 @@ macro_rules! impl_numeric {
 			type Error = ::core::convert::Infallible;
 
 			#[inline]
+			#[track_caller]
 			fn decode(input: &mut ::oct::decode::Input) -> ::core::result::Result<Self, Self::Error> {
 				let mut data = [::core::default::Default::default(); <Self as ::oct::encode::SizedEncode>::MAX_ENCODED_SIZE];
 				input.read_into(&mut data).unwrap();
@@ -914,6 +965,7 @@ macro_rules! impl_tuple {
 			type Error = E;
 
 			#[inline(always)]
+			#[track_caller]
 			fn decode(input: &mut ::oct::decode::Input) -> ::core::result::Result<Self, Self::Error> {
 				let this = (
 					<$ty as ::oct::decode::Decode>::decode(input)?,
@@ -936,6 +988,7 @@ macro_rules! impl_non_zero {
 			type Error = ::oct::error::NonZeroDecodeError;
 
 			#[inline]
+			#[track_caller]
 			fn decode(input: &mut ::oct::decode::Input) -> ::core::result::Result<Self, Self::Error> {
 				use ::core::result::Result::{Err, Ok};
 
@@ -969,6 +1022,7 @@ macro_rules! impl_atomic {
 			type Error = <$ty as ::oct::decode::Decode>::Error;
 
 			#[inline(always)]
+			#[track_caller]
 			fn decode(input: &mut ::oct::decode::Input) -> ::core::result::Result<Self, Self::Error> {
 				let value = ::oct::decode::Decode::decode(input)?;
 
