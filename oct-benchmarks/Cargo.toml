@@ -32,7 +32,7 @@ readme.workspace     = true
 repository.workspace = true
 
 [dependencies]
-oct = { path = "../oct", version = "0.21", features = ["proc-macro"]}
+oct = { path = "../oct", version = "0.22", features = ["proc-macro"]}
 
 bincode  = "2.0"
 rand     = "0.9"

@@ -11,6 +11,7 @@
 //! This module defines the error types used by Oct.
 //! All of these types define (at least conditionally) the [`Error`](core::error::Error) trait.
 
+mod bool_decode_error;
 mod char_decode_error;
 mod collection_decode_error;
 mod collection_encode_error;
@@ -30,6 +31,7 @@ mod system_time_decode_error;
 mod usize_encode_error;
 mod utf8_error;
 
+pub use bool_decode_error::BoolDecodeError;
 pub use char_decode_error::CharDecodeError;
 pub use collection_decode_error::CollectionDecodeError;
 pub use collection_encode_error::CollectionEncodeError;

@@ -11,6 +11,7 @@ mod test;
 use crate::__cold_path;
 use crate::decode::{DecodeBorrowed, Input};
 use crate::error::{
+	BoolDecodeError,
 	CharDecodeError,
 	CollectionDecodeError,
 	EnumDecodeError,
@@ -95,7 +96,7 @@ pub trait Decode: Sized {
 	/// # Panics
 	///
 	/// If `input` unexpectedly terminates before a full encoding was read, then this method should panic.
-	/// #[track_caller]
+	#[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error>;
 }
 
@@ -178,7 +179,7 @@ impl<T: Decode + Ord> Decode for BinaryHeap<T> {
 }
 
 impl Decode for bool {
-	type Error = Infallible;
+	type Error = BoolDecodeError;
 
 	/// Lossily reinterprets a byte value as a boolean.
 	///
@@ -187,6 +188,11 @@ impl Decode for bool {
 	#[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let Ok(value) = u8::decode(input);
+
+		if value > 0x1 {
+			__cold_path();
+			return Err(BoolDecodeError { value });
+		}
 
 		let this = value != 0x0;
 		Ok(this)
@@ -297,12 +303,12 @@ impl Decode for char {
 		let Ok(code_point) = u32::decode(input);
 
 		match code_point {
-			code_point @ (0x0000..=0xD7FF | 0xDE00..=0x10FFFF) => {
+			0x0000..=0xD7FF | 0xDE00..=0x10FFFF => {
 				let this = unsafe { Self::from_u32_unchecked(code_point) };
 				Ok(this)
 			},
 
-			code_point => {
+			_ => {
 				__cold_path();
 				Err(CharDecodeError { code_point })
 			},
@@ -452,14 +458,26 @@ impl Decode for IpAddr {
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let Ok(discriminant) = u8::decode(input);
 
-		let this = match discriminant {
-			0x4 => Self::V4(Decode::decode(input).unwrap()),
-			0x6 => Self::V6(Decode::decode(input).unwrap()),
+		match discriminant {
+			0x4 => {
+				let Ok(addr) = Decode::decode(input);
 
-			value => return Err(EnumDecodeError::UnassignedDiscriminant(value))
-		};
+				let this = Self::V4(addr);
+				Ok(this)
+			}
 
-		Ok(this)
+			0x6 => {
+				let Ok(addr) = Decode::decode(input);
+
+				let this = Self::V6(addr);
+				Ok(this)
+			}
+
+			value => {
+				__cold_path();
+				Err(EnumDecodeError::UnassignedDiscriminant(value))
+			},
+		}
 	}
 }
 
@@ -540,16 +558,19 @@ impl<T: Decode> Decode for Mutex<T> {
 }
 
 impl<T: Decode> Decode for Option<T> {
-	type Error = T::Error;
+	type Error = EnumDecodeError<bool, <bool as Decode>::Error, T::Error>;
 
-	#[expect(clippy::if_then_some_else_none)] // ???
 	#[inline]
 	#[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
-		let Ok(sign) = bool::decode(input);
+		let sign = bool::decode(input)
+			.map_err(EnumDecodeError::InvalidDiscriminant)?;
 
 		let this = if sign {
-			Some(Decode::decode(input)?)
+			let value = Decode::decode(input)
+				.map_err(EnumDecodeError::BadField)?;
+
+			Some(value)
 		} else {
 			None
 		};
@@ -700,7 +721,8 @@ where
 	#[inline]
 	#[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
-		let Ok(sign) = bool::decode(input);
+		let sign = bool::decode(input)
+			.map_err(EnumDecodeError::InvalidDiscriminant)?;
 
 		let this = if sign {
 			let value = Decode::decode(input)
@@ -756,8 +778,19 @@ impl Decode for SocketAddr {
 		let Ok(discriminant) = u8::decode(input);
 
 		match discriminant {
-			0x4 => Ok(Self::V4(Decode::decode(input).unwrap())),
-			0x6 => Ok(Self::V6(Decode::decode(input).unwrap())),
+			0x4 => {
+				let Ok(addr) = Decode::decode(input);
+
+				let this = Self::V4(addr);
+				Ok(this)
+			}
+
+			0x6 => {
+				let Ok(addr) = Decode::decode(input);
+
+				let this = Self::V6(addr);
+				Ok(this)
+			}
 
 			value => {
 				__cold_path();

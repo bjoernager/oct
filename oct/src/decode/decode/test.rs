@@ -12,8 +12,6 @@ use core::char;
 use oct::decode::{Decode, Input};
 use oct::encode::{Encode, SizedEncode};
 use oct::error::EnumDecodeError;
-use oct::string::String;
-use oct::vec::Vec;
 
 macro_rules! test {
 	{
@@ -22,7 +20,7 @@ macro_rules! test {
 				$($data:expr => $value:expr),+$(,)?
 			}$(,)?
 		)*
-	} => {{
+	} => {
 		$($({
 			let data: &[u8] = &$data;
 
@@ -33,7 +31,7 @@ macro_rules! test {
 
 			::std::assert_eq!(left, right);
 		})*)*
-	}};
+	};
 }
 
 #[test]
@@ -94,14 +92,6 @@ fn test_decode() {
 		Result<(), i8> {
 			[0x00, 0x00] => Ok(Ok(())),
 			[0x01, 0x7F] => Ok(Err(i8::MAX)),
-		}
-
-		Vec<u16, 0x6> {
-			[0x02, 0x00, 0xBB, 0xAA, 0xDD, 0xCC] => Ok(Vec::copy_from_slice(&[0xAA_BB, 0xCC_DD]).unwrap()),
-		}
-
-		String<0x6> {
-			[0x06, 0x00, 0xE6, 0x97, 0xA5, 0xE6, 0x9C, 0xAC] => Ok(String::new("\u{65E5}\u{672C}").unwrap()),
 		}
 	}
 }
@@ -246,15 +236,4 @@ fn test_decode_derive_custom_error() {
 			[0x01] => Err(EnumDecodeError::BadField(FooBarError::Bar(BarError))),
 		}
 	}
-}
-
-#[test]
-fn test_decode_oct_vec_long_len() {
-	let data = [
-		0xFF, 0xFF,
-	];
-
-	let mut stream = Input::new(&data);
-
-	let _ = <oct::vec::Vec<u32, 0x0> as Decode>::decode(&mut stream).unwrap_err();
 }

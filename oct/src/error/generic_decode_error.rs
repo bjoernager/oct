@@ -8,6 +8,8 @@
 
 use crate::{PrimDiscriminant, PrimRepr};
 use crate::error::{
+	BoolDecodeError,
+	CharDecodeError,
 	CollectionDecodeError,
 	EnumDecodeError,
 	ItemDecodeError,
@@ -31,8 +33,19 @@ use crate::error::SystemTimeDecodeError;
 #[non_exhaustive]
 #[derive(Debug, Eq, PartialEq)]
 pub enum GenericDecodeError {
+	/// A character was not a valid UTF-32 unit.
+	BadChar(CharDecodeError),
+
 	/// A string contained a non-UTF-8 sequence.
 	BadString(Utf8Error),
+
+	#[cfg(feature = "std")]
+	#[cfg_attr(doc, doc(cfg(feature = "std")))]
+	/// The [`SystemTime`](std::time::SystemTime) type was too narrow.
+	NarrowSystemTime(SystemTimeDecodeError),
+
+	/// A boolean was not boolean.
+	NonBool(BoolDecodeError),
 
 	/// A non-zero integer was null.
 	NullInteger(NonZeroDecodeError),
@@ -44,18 +57,24 @@ pub enum GenericDecodeError {
 	///
 	/// The contained value denotes the raw, numerical value of the discriminant.
 	UnassignedDiscriminant(PrimDiscriminant),
-
-	#[cfg(feature = "std")]
-	#[cfg_attr(doc, doc(cfg(feature = "std")))]
-	/// The [`SystemTime`](std::time::SystemTime) type was too narrow.
-	NarrowSystemTime(SystemTimeDecodeError),
 }
 
 impl Display for GenericDecodeError {
 	#[inline]
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		match *self {
+			Self::BadChar(ref e)
+			=> write!(f, "{e}"),
+
 			Self::BadString(ref e)
+			=> write!(f, "{e}"),
+
+			#[cfg(feature = "std")]
+			#[cfg_attr(doc, doc(cfg(feature = "std")))]
+			Self::NarrowSystemTime(ref e)
+			=> write!(f, "{e}"),
+
+			Self::NonBool(ref e)
 			=> write!(f, "{e}"),
 
 			Self::NullInteger(ref e)
@@ -66,11 +85,6 @@ impl Display for GenericDecodeError {
 
 			Self::UnassignedDiscriminant(value)
 			=> write!(f, "discriminant value `{value:#X} has not been assigned"),
-
-			#[cfg(feature = "std")]
-			#[cfg_attr(doc, doc(cfg(feature = "std")))]
-			Self::NarrowSystemTime(ref e)
-			=> write!(f, "{e}"),
 		}
 	}
 }
@@ -79,18 +93,36 @@ impl Error for GenericDecodeError {
 	#[inline]
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		match *self {
+			Self::BadChar(ref e) => Some(e),
+
 			Self::BadString(ref e) => Some(e),
-
-			Self::NullInteger(ref e) => Some(e),
-
-			Self::SmallBuffer(ref e) => Some(e),
 
 			#[cfg(feature = "std")]
 			#[cfg_attr(doc, doc(cfg(feature = "std")))]
 			Self::NarrowSystemTime(ref e) => Some(e),
 
+			Self::NonBool(ref e) => Some(e),
+
+			Self::NullInteger(ref e) => Some(e),
+
+			Self::SmallBuffer(ref e) => Some(e),
+
 			_ => None,
 		}
+	}
+}
+
+impl From<BoolDecodeError> for GenericDecodeError {
+	#[inline(always)]
+	fn from(value: BoolDecodeError) -> Self {
+		Self::NonBool(value)
+	}
+}
+
+impl From<CharDecodeError> for GenericDecodeError {
+	#[inline(always)]
+	fn from(value: CharDecodeError) -> Self {
+		Self::BadChar(value)
 	}
 }
 

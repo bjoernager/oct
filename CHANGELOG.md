@@ -3,6 +3,20 @@
 This is the changelog of [Oct](https://crates.io/crates/oct/).
 See `README.md` for more information.
 
+## 0.22.0
+
+* Clean up code
+* Again make `bool` decoding fallible
+* Bring back `BoolDecodeError` error
+* Add `BadChar` and `NonBool` variants to `GenericDecodeError`
+* Fix `GenericDecodeError` not implementing `From<CharDecodeError>`
+* Implement `From<BoolDecodeError>` for `GenericDecodeError`
+* Fix `<Option as Decode>::Error` not being a form of `EnumDecodeError`
+* Remove `string` and `vec` modules (including contents)
+* Remove `string` and `vec` macros
+* Update readme
+* Fix `<{Option, Result, SocketAddr} as Encode>::Error` not being forms of `EnumEncodeError`
+
 ## 0.21.2
 
 * Update tests

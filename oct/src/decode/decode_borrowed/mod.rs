@@ -34,8 +34,6 @@ use std::ffi::{OsStr, OsString};
 /// This trait in the form <code>DecodeBorrowed&lt;[\[T\]]&gt;</code> is not implemented for [`[T; N]`](array) due to the fact that arrays do not encode their length, instead having it hard-coded into the type, thus rendering their scheme incompatible with that of slices.
 ///
 /// [\[T\]]: slice
-///
-/// An alternative to using arrays would be to use the [`Vec`](crate::vec::Vec) type, which *does* use the same scheme.
 #[doc(alias("DeserialiseBorrowed", "DeserializeBorrowed"))]
 pub trait DecodeBorrowed<B: ?Sized>: Borrow<B> + Decode { }
 

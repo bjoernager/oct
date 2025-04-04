@@ -8,6 +8,7 @@
 
 mod test;
 
+use crate::__cold_path;
 use crate::encode::Output;
 use crate::error::{
 	CollectionEncodeError,
@@ -458,12 +459,12 @@ impl Encode for IpAddr {
 		match *self {
 			Self::V4(ref addr) => {
 				0x4u8.encode(output).map_err(EnumEncodeError::BadDiscriminant)?;
-				addr.encode(output).map_err(EnumEncodeError::BadField)?;
+				let Ok(()) = addr.encode(output);
 			}
 
 			Self::V6(ref addr) => {
 				0x6u8.encode(output).map_err(EnumEncodeError::BadDiscriminant)?;
-				addr.encode(output).map_err(EnumEncodeError::BadField)?;
+				let Ok(()) = addr.encode(output);
 			}
 		}
 
@@ -502,11 +503,17 @@ impl Encode for isize {
 	#[inline]
 	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
-		let value = i16::try_from(*self)
-			.map_err(|_| IsizeEncodeError(*self))?;
+		let value = *self;
 
-		let Ok(()) = value.encode(output);
-		Ok(())
+		if value <= i16::MAX as Self {
+			let value = value as i16;
+			let Ok(()) = value.encode(output);
+
+			Ok(())
+		} else {
+			__cold_path();
+			Err(IsizeEncodeError(value))
+		}
 	}
 }
 
@@ -571,7 +578,7 @@ impl<T: Encode + ?Sized> Encode for Mutex<T> {
 }
 
 impl<T: Encode> Encode for Option<T> {
-	type Error = T::Error;
+	type Error = EnumEncodeError<<bool as Encode>::Error, T::Error>;
 
 	/// Encodes a sign denoting the optional's variant.
 	/// This is `false` for `None` instances and `true` for `Some` instances.
@@ -581,17 +588,12 @@ impl<T: Encode> Encode for Option<T> {
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		match *self {
 			None => {
-				false
-					.encode(output)
-					.map_err::<Self::Error, _>(|_v| unreachable!())?;
+				false.encode(output).map_err(EnumEncodeError::BadDiscriminant)?;
 			}
 
 			Some(ref v) => {
-				true
-					.encode(output)
-					.map_err::<Self::Error, _>(|_v| unreachable!())?;
-
-				v.encode(output)?;
+				true.encode(output).map_err(EnumEncodeError::BadDiscriminant)?;
+				v.encode(output).map_err(EnumEncodeError::BadField)?;
 			}
 		};
 
@@ -759,12 +761,8 @@ impl<T: Encode + ?Sized> Encode for RefCell<T> {
 	#[inline(always)]
 	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
-		let value = self
-			.try_borrow()
-			.map_err(RefCellEncodeError::BadBorrow)?;
-
-		T::encode(&value, output)
-			.map_err(RefCellEncodeError::BadValue)?;
+		let value = self.try_borrow().map_err(RefCellEncodeError::BadBorrow)?;
+		T::encode(&value, output).map_err(RefCellEncodeError::BadValue)?;
 
 		Ok(())
 	}
@@ -775,7 +773,7 @@ where
 	T: Encode<Error = Err>,
 	E: Encode<Error: Into<Err>>,
 {
-	type Error = Err;
+	type Error = EnumEncodeError<<bool as Encode>::Error, Err>;
 
 	/// Encodes a sign denoting the result's variant.
 	/// This is `false` for `Ok` instances and `true` for `Err` instances.
@@ -784,20 +782,18 @@ where
 	#[inline]
 	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
-		// The sign here is `false` for `Ok` objects and
-		// `true` for `Err` objects.
-
 		match *self {
 			Ok(ref v) => {
-				let Ok(()) = false.encode(output);
-
-				v.encode(output)?;
+				false.encode(output).map_err(EnumEncodeError::BadDiscriminant)?;
+				v.encode(output).map_err(EnumEncodeError::BadField)?;
 			}
 
 			Err(ref e) => {
-				let Ok(()) = true.encode(output);
+				true.encode(output).map_err(EnumEncodeError::BadDiscriminant)?;
 
-				e.encode(output).map_err(Into::into)?;
+				e.encode(output)
+					.map_err(Into::<Err>::into)
+					.map_err(EnumEncodeError::BadField)?;
 			}
 		};
 
@@ -831,7 +827,7 @@ impl<T: Encode> Encode for Saturating<T> {
 }
 
 impl Encode for SocketAddr {
-	type Error = Infallible;
+	type Error = EnumEncodeError<<u8 as Encode>::Error, Infallible>;
 
 	/// This implementation encoded as discriminant denoting the IP version of the address (i.e. `4` for IPv4 and `6` for IPv6).
 	/// This is then followed by the respective address' own encoding (either [`SocketAddrV4`] or [`SocketAddrV6`]).
@@ -842,12 +838,12 @@ impl Encode for SocketAddr {
 
 		match *self {
 			Self::V4(ref addr) => {
-				let Ok(()) = 0x4u8.encode(output);
+				0x4u8.encode(output).map_err(EnumEncodeError::BadDiscriminant)?;
 				let Ok(()) = addr.encode(output);
 			}
 
 			Self::V6(ref addr) => {
-				let Ok(()) = 0x6u8.encode(output);
+				0x6u8.encode(output).map_err(EnumEncodeError::BadDiscriminant)?;
 				let Ok(()) = addr.encode(output);
 			}
 		}
@@ -979,11 +975,17 @@ impl Encode for usize {
 	#[inline]
 	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
-		let value = u16::try_from(*self)
-			.map_err(|_| UsizeEncodeError(*self))?;
+		let value = *self;
 
+		if value <= u16::MAX as Self {
+			let value = value as u16;
 			let Ok(()) = value.encode(output);
-		Ok(())
+
+			Ok(())
+		} else {
+			__cold_path();
+			Err(UsizeEncodeError(value))
+		}
 	}
 }
 

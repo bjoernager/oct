@@ -209,7 +209,7 @@
 //! Oct does not accept source code contributions at the moment.
 //! This is a personal choice by the maintainer and may be undone in the future.
 //!
-//! Do however feel free to open an issue on [GitLab](https://gitlab.com/bjoernager/oct/issues/) or [GitHub](https://github.com/bjoernager/oct/issues/) if you feel the need to express any concerns over the project.
+//! Do however feel free to open an issue on [GitLab](https://gitlab.com/bjoernager/oct/issues/), on [GitHub](https://github.com/bjoernager/oct/issues/), or on [`mandelbrot.dk`](https://mandelbrot.dk/bjoernager/oct/issues/) (if a member) if you feel the need to express any concerns over the project.
 //!
 //! # Copyright & Licence
 //!
@@ -245,8 +245,6 @@ mod prim_repr;
 pub mod decode;
 pub mod encode;
 pub mod error;
-pub mod string;
-pub mod vec;
 
 #[cfg(feature = "alloc")]
 pub mod slot;
@@ -256,45 +254,32 @@ pub use prim_repr::PrimRepr;
 
 pub(crate) use prim_repr::SealedPrimRepr;
 
-/// Directly constructs a [`Vec`](crate::vec::Vec) object.
-///
-/// This macro tests at compile-time whether the provided data can fit into the inferred length.
-/// Compilation will fail if this is not the case.
+#[doc(hidden)]
 #[macro_export]
-macro_rules! vec {
-	[$value:literal; $len:expr] => {{
-		const { $crate::vec::Vec::new([$value; $len]) }
-	}};
+macro_rules! enum_encoded_size {
+	($(($($tys:ty),+$(,)?)),*$(,)?) => {
+		const {
+			#[allow(unused)]
+			use ::oct::encode::SizedEncode;
 
-	[$($value:expr),+ $(,)?] => {{
-		const { $crate::vec::Vec::new([$($value,)*]) }
-	}};
+			let mut total_size = 0x0usize;
 
-	[] => {{
-		const { $crate::vec::Vec::new([]) }
-	}}
-}
+			$({
+				let current_size = 0x0usize $(+ <$tys as SizedEncode>::MAX_ENCODED_SIZE)*;
 
+				if current_size > total_size {
+					total_size = current_size;
+				}
+			})*
 
-/// Directly constructs a [`String`](crate::string::String) object.
-///
-/// This macro tests at compile-time whether the string literal can fit into the inferred length.
-/// Compilation will fail if this is not the case.
-#[macro_export]
-macro_rules! string {
-	($s:expr) => {{
-		const { $crate::string::__string($s) }
-	}};
-
-	() => {{
-		const { $crate::string::__string("") }
-	}};
+			total_size
+		}
+	};
 }
 
 // NOTE: Stable equivalent of `core::hint::
 // cold_path`. Should not be used directly, but is
 // used in derive macros.
 #[doc(hidden)]
-#[inline(always)]
 #[cold]
 pub const fn __cold_path() { }

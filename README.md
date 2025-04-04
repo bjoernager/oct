@@ -197,7 +197,7 @@ The nightly toolchain is therefore always required when rendering them or or run
 Oct does not accept source code contributions at the moment.
 This is a personal choice by the maintainer and may be undone in the future.
 
-Do however feel free to open an issue on [GitLab](https://gitlab.com/bjoernager/oct/issues/) or [GitHub](https://github.com/bjoernager/oct/issues/) if you feel the need to express any concerns over the project.
+Do however feel free to open an issue on [GitLab](https://gitlab.com/bjoernager/oct/issues/), on [GitHub](https://github.com/bjoernager/oct/issues/), or on [`mandelbrot.dk`](https://mandelbrot.dk/bjoernager/oct/issues/) (if a member) if you feel the need to express any concerns over the project.
 
 ## Copyright & Licence
 

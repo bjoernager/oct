@@ -12,12 +12,8 @@ use core::fmt::{self, Display, Formatter};
 
 /// A collection buffer was too small to contain all of its elements.
 ///
-/// Some data types use a statically-sized buffer whilst still allowing for partial usage of this buffer (e.g. [`Vec`](crate::vec::Vec)).
+/// Some data types use a statically-sized buffer whilst still allowing for partial usage of this buffer.
 /// These types should return this error in cases where their size limit has exceeded.
-///
-/// Taking `Vec` as an example, it encodes its actual length before encoding its elements.
-/// It is allowed for any smaller-sized `Vec` instance to decode a larger-sized encoding **if** the actual length is still within bounds.
-/// Otherwise, this error type is used to denote the error state.
 #[derive(Debug, Eq, PartialEq)]
 #[must_use]
 pub struct LengthError {

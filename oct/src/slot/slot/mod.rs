@@ -32,23 +32,25 @@ use core::slice::{self, SliceIndex};
 /// Create a slot for holding a `Request` enumeration:
 ///
 /// ```rust
-/// use oct::string;
 /// use oct::encode::{Encode, Output, SizedEncode};
 /// use oct::slot::Slot;
-/// use oct::string::String;
+/// use std::string::String;
 ///
+/// #[non_exhaustive]
 /// #[derive(Debug, Encode)]
 /// enum Request {
-///     Join { username: String<0x40> },
+///     Join { username: String },
 ///
-///     Quit { username: String<0x40> },
+///     Quit { username: String },
 ///
-///     SendMessage { message: String<0x80> },
+///     SendMessage { message: String },
+///
+///     // ...
 /// }
 ///
 /// let mut buf = Slot::with_capacity(0x100);
 ///
-/// buf.write(&Request::Join { username: string!("epsiloneridani") }).unwrap();
+/// buf.write(&Request::Join { username: "epsiloneridani".into() }).unwrap();
 /// assert_eq!(buf.as_slice(), b"\0\0\x0E\0epsiloneridani");
 ///
 /// // ...

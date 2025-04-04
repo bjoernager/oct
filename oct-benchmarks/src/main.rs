@@ -775,7 +775,7 @@ fn main() {
 				let mut stream = Input::new(&buf);
 
 				for _ in 0x0..VALUE_COUNT {
-					let Ok(_) = bool::decode(&mut stream);
+					let _ = bool::decode(&mut stream);
 				}
 			}
 

@@ -8,6 +8,7 @@
 
 mod test;
 
+use crate::enum_encoded_size;
 use crate::encode::Encode;
 
 use core::cell::{Cell, LazyCell, RefCell, UnsafeCell};
@@ -231,14 +232,14 @@ impl<T: SizedEncode + ?Sized> SizedEncode for RefCell<T> {
 	const MAX_ENCODED_SIZE: usize = T::MAX_ENCODED_SIZE;
 }
 
-impl<T, E, Err> SizedEncode for core::result::Result<T, E>
+impl<T, E, Err> SizedEncode for Result<T, E>
 where
-	T: SizedEncode + Encode<Error = Err>,
-	E: SizedEncode + Encode<Error: Into<Err>>,
+	T: Encode<Error = Err> + SizedEncode,
+	E: Encode<Error: Into<Err>> + SizedEncode,
 {
 	const MAX_ENCODED_SIZE: usize =
 		bool::MAX_ENCODED_SIZE
-		+ if size_of::<T>() > size_of::<E>() { size_of::<T>() } else { size_of::<E>() };
+		+ enum_encoded_size!((T), (E));
 }
 
 #[cfg(feature = "std")]
@@ -308,7 +309,7 @@ macro_rules! impl_tuple {
 		#[doc(hidden)]
 		impl<$($tys, )* E> ::oct::encode::SizedEncode for ($($tys, )*)
 		where
-			$($tys: SizedEncode + Encode<Error = E>, )* {
+			$($tys: Encode<Error = E> + SizedEncode, )* {
 			const MAX_ENCODED_SIZE: usize = 0x0 $(+ <$tys as ::oct::encode::SizedEncode>::MAX_ENCODED_SIZE)*;
 		}
 	};
