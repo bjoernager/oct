@@ -25,7 +25,7 @@ impl Display for UsizeEncodeError {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		write!(
 			f,
-			"unsigned size value ({}) cannot be serialised: must be at most ({})",
+			"unsigned size value `{}` cannot be serialised: must be at most `{}`",
 			self.0,
 			u16::MAX,
 		)

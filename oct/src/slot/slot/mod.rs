@@ -55,7 +55,7 @@ use core::slice::{self, SliceIndex};
 ///
 /// // ...
 /// ```
-#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "alloc")))]
 pub struct Slot<T> {
 	len: usize,
 	buf: Box<[u8]>,
@@ -63,7 +63,7 @@ pub struct Slot<T> {
 	_ty: PhantomData<fn() -> T>,
 }
 
-#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "alloc")))]
 impl<T> Slot<T> {
 	/// Allocates a new slot suitable for encodings.
 	///
@@ -133,8 +133,16 @@ impl<T> Slot<T> {
 	#[inline(always)]
 	#[must_use]
 	pub fn as_slice(&self) -> &[u8] {
-		// SAFETY: References always contain valid values.
-		unsafe { slice::from_raw_parts(self.as_ptr(), self.len()) }
+		// NOTE: We cannot simply return the entire buffer
+		// as a slice.
+
+		let len = self.len();
+		let ptr = self.as_ptr();
+
+		// SAFETY: We already guarantee an accurate rela-
+		// tionship between `len` and `as_ptr`, and that
+		// `as_ptr` yields a valid reference.
+		unsafe { slice::from_raw_parts(ptr, len) }
 	}
 
 	/// Gets a mutable slice of the slot's buffer.
@@ -145,8 +153,13 @@ impl<T> Slot<T> {
 	#[inline(always)]
 	#[must_use]
 	pub fn as_mut_slice(&mut self) -> &mut [u8] {
-		// SAFETY: Our pointer is a valid reference.
-		unsafe { slice::from_raw_parts_mut(self.as_mut_ptr(), self.capacity()) }
+		let len = self.len();
+		let ptr = self.as_mut_ptr();
+
+		// SAFETY: We already guarantee an accurate rela-
+		// tionship between `len` and `as_ptr`, and that
+		// `as_ptr` yields a valid reference.
+		unsafe { slice::from_raw_parts_mut(ptr, len) }
 	}
 
 	/// Copies data from a slice.
@@ -159,22 +172,26 @@ impl<T> Slot<T> {
 	#[inline]
 	#[track_caller]
 	pub fn copy_from_slice(&mut self, data: &[u8]) {
+		// NOTE: We cannot use `<[u8]>::copy_from_slice` as
+		// it requires balanced lengths.
+
 		let len = data.len();
 
 		assert!(len <= self.capacity(), "slot cannot contain source slice");
 
-		unsafe {
+		{
 			let src = data.as_ptr();
 			let dst = self.as_mut_ptr();
 
 			// SAFETY: The pointers are guaranteed to be valid
-			// and the length has been tested. `dst` also guaran-
-			// tees exclusivity due to be a mutable reference.
-			copy_nonoverlapping(src, dst, len);
-
-			// SAFETY: We have asserted bounds.
-			self.set_len_unchecked(len);
+			// references and the length has been tested. `dst`
+			// also guarantees exclusivity due to `self` being
+			// a mutable reference.
+			unsafe { copy_nonoverlapping(src, dst, len) };
 		}
+
+		// SAFETY: We have asserted bounds.
+		unsafe { self.set_len_unchecked(len) };
 	}
 
 	/// Sets the length of the slot.
@@ -209,8 +226,8 @@ impl<T> Slot<T> {
 	pub unsafe fn set_len_unchecked(&mut self, len: usize) {
 		debug_assert!(len <= self.capacity(), "cannot extend slot beyond capacity");
 
-		// SAFETY: The length has been guaranteed by the
-		// caller.
+		// SAFETY: The length is guaranteed by the caller
+		// to be not greater than our capacity.
 		self.len = len;
 	}
 
@@ -245,7 +262,7 @@ impl<T> Slot<T> {
 	}
 }
 
-#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "alloc")))]
 impl<T: Encode> Slot<T> {
 	/// Encodes an object into the slot.
 	///
@@ -268,7 +285,7 @@ impl<T: Encode> Slot<T> {
 	}
 }
 
-#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "alloc")))]
 impl<T: Decode> Slot<T> {
 	/// Decodes an object from the slot.
 	///
@@ -287,13 +304,11 @@ impl<T: Decode> Slot<T> {
 		// `decode`.
 
 		let mut stream = Input::new(&self.buf);
-
-		let value = Decode::decode(&mut stream)?;
-		Ok(value)
+		Decode::decode(&mut stream)
 	}
 }
 
-#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "alloc")))]
 impl<T: SizedEncode> Slot<T> {
 	/// Allocates a new slot suitable for encoding.
 	///
@@ -307,7 +322,7 @@ impl<T: SizedEncode> Slot<T> {
 }
 
 /// See also [`as_mut_slice`](Self::as_mut_slice).
-#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "alloc")))]
 impl<T> AsMut<[u8]> for Slot<T> {
 	#[inline(always)]
 	fn as_mut(&mut self) -> &mut [u8] {
@@ -316,7 +331,7 @@ impl<T> AsMut<[u8]> for Slot<T> {
 }
 
 /// See also [`as_slice`](Self::as_slice).
-#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "alloc")))]
 impl<T> AsRef<[u8]> for Slot<T> {
 	#[inline(always)]
 	fn as_ref(&self) -> &[u8] {
@@ -325,7 +340,7 @@ impl<T> AsRef<[u8]> for Slot<T> {
 }
 
 /// See also [`as_slice`](Self::as_slice).
-#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "alloc")))]
 impl<T> Borrow<[u8]> for Slot<T> {
 	#[inline(always)]
 	fn borrow(&self) -> &[u8] {
@@ -334,7 +349,7 @@ impl<T> Borrow<[u8]> for Slot<T> {
 }
 
 /// See also [`as_mut_slice`](Self::as_mut_slice).
-#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "alloc")))]
 impl<T> BorrowMut<[u8]> for Slot<T> {
 	#[inline(always)]
 	fn borrow_mut(&mut self) -> &mut [u8] {
@@ -342,7 +357,7 @@ impl<T> BorrowMut<[u8]> for Slot<T> {
 	}
 }
 
-#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "alloc")))]
 impl<T> Debug for Slot<T> {
 	#[inline]
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
@@ -350,7 +365,7 @@ impl<T> Debug for Slot<T> {
 	}
 }
 
-#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "alloc")))]
 impl<T: SizedEncode> Default for Slot<T> {
 	#[inline(always)]
 	fn default() -> Self {
@@ -358,7 +373,7 @@ impl<T: SizedEncode> Default for Slot<T> {
 	}
 }
 
-#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "alloc")))]
 impl<T> Deref for Slot<T> {
 	type Target = [u8];
 
@@ -368,7 +383,7 @@ impl<T> Deref for Slot<T> {
 	}
 }
 
-#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "alloc")))]
 impl<T> DerefMut for Slot<T> {
 	#[inline(always)]
 	fn deref_mut(&mut self) -> &mut Self::Target {
@@ -376,7 +391,7 @@ impl<T> DerefMut for Slot<T> {
 	}
 }
 
-#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "alloc")))]
 impl<T, I: SliceIndex<[u8]>> Index<I> for Slot<T> {
 	type Output = I::Output;
 
@@ -386,7 +401,7 @@ impl<T, I: SliceIndex<[u8]>> Index<I> for Slot<T> {
 	}
 }
 
-#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "alloc")))]
 impl<T, I: SliceIndex<[u8]>> IndexMut<I> for Slot<T> {
 	#[inline(always)]
 	fn index_mut(&mut self, index: I) -> &mut Self::Output {
@@ -394,7 +409,7 @@ impl<T, I: SliceIndex<[u8]>> IndexMut<I> for Slot<T> {
 	}
 }
 
-#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "alloc")))]
 impl<T> PartialEq<[u8]> for Slot<T> {
 	#[inline(always)]
 	fn eq(&self, other: &[u8]) -> bool {
@@ -408,7 +423,7 @@ impl<T> PartialEq<[u8]> for Slot<T> {
 	}
 }
 
-#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "alloc")))]
 impl<T> PartialEq<&[u8]> for Slot<T> {
 	#[inline(always)]
 	fn eq(&self, other: &&[u8]) -> bool {

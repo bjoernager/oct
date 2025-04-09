@@ -2,7 +2,7 @@
 
 Oct is a Rust crate for cheaply serialising (encoding) and deserialising (decoding) data structures to and from binary streams
 
-What separates this crate from others such as [Bincode](https://crates.io/crates/bincode/) or [Postcard](https://crates.io/crates/postcard/) is that this crate is extensively optimised for directly translating into binary encodings (whilst the mentioned crates specifically use Serde as a middle layer).
+What separates this crate from others such as [Postcard](https://crates.io/crates/postcard/) is that this crate is extensively optimised for directly translating into binary encodings (whilst the mentioned crate specifically use Serde as a middle layer).
 
 The original goal of this project was specifically to guarantee size constraints for encodings on a per-type basis at compile-time.
 Therefore, this crate may be more suited for networking or other cases where many allocations are unwanted.
@@ -20,19 +20,19 @@ According to my runs on an AMD Ryzen 7 3700X with default settings, these benchm
 
 | Benchmark                          | [Bincode] | [Borsh] | Oct    | [Postcard] |
 | :--------------------------------- | --------: | ------: | -----: | ---------: |
-| `encode_u8`                        |     1.004 |   0.880 |  0.812 |      0.860 |
-| `encode_u32`                       |     1.312 |   0.973 |  0.818 |      2.706 |
-| `encode_u128`                      |     2.631 |   2.174 |  1.561 |      6.159 |
-| `encode_char`                      |     1.598 |   1.256 |  0.830 |      2.393 |
+| `encode_u8`                        |     0.886 |   0.855 |  0.764 |      0.812 |
+| `encode_u32`                       |     1.225 |   0.938 |  0.764 |      2.653 |
+| `encode_u128`                      |     2.685 |   2.219 |  1.643 |      6.061 |
+| `encode_char`                      |     1.604 |   1.211 |  0.781 |      2.375 |
 | `encode_struct_unit`               |     0.000 |   0.000 |  0.000 |      0.000 |
-| `encode_struct_unnamed`            |     1.452 |   1.238 |  0.815 |      2.296 |
-| `encode_struct_named`              |     1.464 |   1.471 |  1.105 |      3.026 |
-| `encode_enum_unit`                 |     0.290 |   0.290 |  0.000 |      0.288 |
-| `decode_u8`                        |     0.975 |   1.018 |  0.987 |      0.974 |
-| `decode_non_zero_u8`               |     1.192 |   1.292 |  1.268 |      1.286 |
-| `decode_bool`                      |     1.037 |   1.099 |  1.041 |      1.101 |
-| **Total time** &#8594;             |    12.957 |  11.690 |  9.238 |     21.091 |
-| **Total deviation (p.c.)** &#8594; |       +40 |     +27 |     ±0 |       +128 |
+| `encode_struct_unnamed`            |     1.399 |   1.196 |  0.779 |      2.235 |
+| `encode_struct_named`              |     1.458 |   1.441 |  1.026 |      3.016 |
+| `encode_enum_unit`                 |     0.287 |   0.287 |  0.000 |      0.286 |
+| `decode_u8`                        |     0.865 |   0.916 |  1.003 |      0.911 |
+| `decode_non_zero_u8`               |     1.204 |   1.246 |  1.217 |      1.241 |
+| `decode_bool`                      |     1.067 |   1.036 |  1.028 |      1.187 |
+| **Total time** &#8594;             |    12.681 |  11.345 |  9.005 |     20.776 |
+| **Total deviation (p.c.)** &#8594; |       +41 |     +26 |     ±0 |       +131 |
 
 [Bincode]: https://crates.io/crates/bincode/
 [Borsh]: https://crates.io/crates/borsh/

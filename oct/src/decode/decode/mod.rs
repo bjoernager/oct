@@ -51,11 +51,13 @@ use {
 	alloc::boxed::Box,
 	alloc::collections::{BinaryHeap, LinkedList},
 	alloc::ffi::CString,
-	alloc::rc::Rc,
+	alloc::rc::{self, Rc},
+	alloc::string::String,
+	alloc::vec::Vec,
 };
 
 #[cfg(all(feature = "alloc", target_has_atomic = "ptr"))]
-use alloc::sync::Arc;
+use alloc::sync::{self, Arc};
 
 #[cfg(any(feature = "f128", feature = "f16"))]
 use crate::oct::encode::SizedEncode;
@@ -101,14 +103,14 @@ pub trait Decode: Sized {
 }
 
 /// Implemented for tuples with up to twelve members.
-#[cfg_attr(doc, doc(fake_variadic))]
-impl<T: Decode> Decode for (T, ) {
+#[cfg_attr(feature = "unstable-docs", doc(fake_variadic))]
+impl<T: Decode> Decode for (T,) {
 	type Error = T::Error;
 
 	#[inline(always)]
 	#[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
-		let this = (Decode::decode(input)?, );
+		let this = (Decode::decode(input)?,);
 		Ok(this)
 	}
 }
@@ -149,7 +151,7 @@ impl<T: Decode, const N: usize> Decode for [T; N] {
 }
 
 #[cfg(all(feature = "alloc", target_has_atomic = "ptr"))]
-#[cfg_attr(doc, doc(cfg(all(feature = "alloc", target_has_atomic = "ptr"))))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(all(feature = "alloc", target_has_atomic = "ptr"))))]
 impl<T: Decode> Decode for Arc<T> {
 	type Error = T::Error;
 
@@ -164,14 +166,14 @@ impl<T: Decode> Decode for Arc<T> {
 }
 
 #[cfg(feature = "alloc")]
-#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "alloc")))]
 impl<T: Decode + Ord> Decode for BinaryHeap<T> {
-	type Error = <alloc::vec::Vec<T> as Decode>::Error;
+	type Error = <Vec<T> as Decode>::Error;
 
 	#[inline(always)]
 	#[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
-		let v = alloc::vec::Vec::decode(input)?;
+		let v = Vec::decode(input)?;
 
 		let this = v.into();
 		Ok(this)
@@ -232,7 +234,7 @@ impl<T: Decode> Decode for Bound<T> {
 }
 
 #[cfg(feature = "alloc")]
-#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "alloc")))]
 impl<T: Decode> Decode for Box<T> {
 	type Error = T::Error;
 
@@ -247,25 +249,25 @@ impl<T: Decode> Decode for Box<T> {
 }
 
 #[cfg(feature = "alloc")]
-#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "alloc")))]
 impl Decode for CString {
-	type Error = <alloc::vec::Vec<u8> as Decode>::Error;
+	type Error = <Vec<u8> as Decode>::Error;
 
 	/// Decodes a byte slice from the input.
 	///
 	/// This implementation will always allocate one more byte than specified by the slice for the null terminator.
 	/// Note that any null value already in the data will truncate the final string.
-	#[inline(always)]
+	#[inline]
 	#[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let Ok(len) = usize::decode(input);
 
 		let mut v = alloc::vec![0x00; len + 0x1];
-		input.read_into(&mut v[..len]).unwrap();
+		input.read_into(&mut v[..len]);
 
 		// SAFETY: We have guaranteed that there is at
 		// least one null value. We also don't care if the
-		// string gets truncated.
+		// string gets truncated due to invalid input.
 		let this = unsafe { Self::from_vec_with_nul_unchecked(v) };
 		Ok(this)
 	}
@@ -302,22 +304,15 @@ impl Decode for char {
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let Ok(code_point) = u32::decode(input);
 
-		match code_point {
-			0x0000..=0xD7FF | 0xDE00..=0x10FFFF => {
-				let this = unsafe { Self::from_u32_unchecked(code_point) };
-				Ok(this)
-			},
-
-			_ => {
-				__cold_path();
-				Err(CharDecodeError { code_point })
-			},
-		}
+		code_point.try_into().map_err(|_| {
+			__cold_path();
+			CharDecodeError { code_point }
+		})
 	}
 }
 
 #[cfg(feature = "alloc")]
-#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "alloc")))]
 impl<T, B> Decode for Cow<'_, B>
 where
 	T: DecodeBorrowed<B>,
@@ -350,7 +345,7 @@ impl Decode for Duration {
 }
 
 #[cfg(feature = "f128")]
-#[cfg_attr(doc, doc(cfg(feature = "f128")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "f128")))]
 impl Decode for f128 {
 	type Error = Infallible;
 
@@ -358,7 +353,7 @@ impl Decode for f128 {
 	#[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let mut data = [Default::default(); <Self as SizedEncode>::MAX_ENCODED_SIZE];
-		input.read_into(&mut data).unwrap();
+		input.read_into(&mut data);
 
 		let this = Self::from_le_bytes(data);
 		Ok(this)
@@ -366,7 +361,7 @@ impl Decode for f128 {
 }
 
 #[cfg(feature = "f16")]
-#[cfg_attr(doc, doc(cfg(feature = "f16")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "f16")))]
 impl Decode for f16 {
 	type Error = Infallible;
 
@@ -374,7 +369,7 @@ impl Decode for f16 {
 	#[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
 		let mut data = [Default::default(); <Self as SizedEncode>::MAX_ENCODED_SIZE];
-		input.read_into(&mut data).unwrap();
+		input.read_into(&mut data);
 
 		let this = Self::from_le_bytes(data);
 		Ok(this)
@@ -382,7 +377,7 @@ impl Decode for f16 {
 }
 
 #[cfg(feature = "std")]
-#[cfg_attr(doc, doc(cfg(feature = "std")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "std")))]
 impl<K, V, S, E> Decode for HashMap<K, V, S>
 where
 	K: Decode<Error = E> + Eq + Hash,
@@ -414,7 +409,7 @@ where
 
 
 #[cfg(feature = "std")]
-#[cfg_attr(doc, doc(cfg(feature = "std")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "std")))]
 impl<K, S> Decode for HashSet<K, S>
 where
 	K: Decode + Eq + Hash,
@@ -476,7 +471,7 @@ impl Decode for IpAddr {
 			value => {
 				__cold_path();
 				Err(EnumDecodeError::UnassignedDiscriminant(value))
-			},
+			}
 		}
 	}
 }
@@ -520,7 +515,7 @@ impl Decode for isize {
 }
 
 #[cfg(feature = "alloc")]
-#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "alloc")))]
 impl<T: Decode> Decode for LinkedList<T> {
 	type Error = CollectionDecodeError<Infallible, ItemDecodeError<usize, T::Error>>;
 
@@ -543,7 +538,7 @@ impl<T: Decode> Decode for LinkedList<T> {
 }
 
 #[cfg(feature = "std")]
-#[cfg_attr(doc, doc(cfg(feature = "std")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "std")))]
 impl<T: Decode> Decode for Mutex<T> {
 	type Error = T::Error;
 
@@ -580,14 +575,14 @@ impl<T: Decode> Decode for Option<T> {
 }
 
 #[cfg(feature = "std")]
-#[cfg_attr(doc, doc(cfg(feature = "std")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "std")))]
 impl Decode for OsString {
-	type Error = <alloc::string::String as Decode>::Error;
+	type Error = <String as Decode>::Error;
 
 	#[inline(always)]
 	#[track_caller]
 	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
-		let s: alloc::string::String = Decode::decode(input)?;
+		let s: String = Decode::decode(input)?;
 
 		let this = s.into();
 		Ok(this)
@@ -687,7 +682,7 @@ impl<T: Decode> Decode for RangeToInclusive<T> {
 }
 
 #[cfg(feature = "alloc")]
-#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "alloc")))]
 impl<T: Decode> Decode for Rc<T> {
 	type Error = T::Error;
 
@@ -742,7 +737,7 @@ where
 }
 
 #[cfg(feature = "std")]
-#[cfg_attr(doc, doc(cfg(feature = "std")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "std")))]
 impl<T: Decode> Decode for RwLock<T> {
 	type Error = T::Error;
 
@@ -795,7 +790,7 @@ impl Decode for SocketAddr {
 			value => {
 				__cold_path();
 				Err(EnumDecodeError::UnassignedDiscriminant(value))
-			},
+			}
 		}
 	}
 }
@@ -831,8 +826,8 @@ impl Decode for SocketAddrV6 {
 }
 
 #[cfg(feature = "alloc")]
-#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
-impl Decode for alloc::string::String {
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "alloc")))]
+impl Decode for String {
 	type Error = CollectionDecodeError<Infallible, Utf8Error>;
 
 	#[inline]
@@ -841,7 +836,7 @@ impl Decode for alloc::string::String {
 		let Ok(len) = Decode::decode(input);
 
 		let mut v = alloc::vec![0x00; len];
-		input.read_into(&mut v).unwrap();
+		input.read_into(&mut v);
 
 		match Self::from_utf8(v) {
 			Ok(s) => Ok(s),
@@ -861,7 +856,7 @@ impl Decode for alloc::string::String {
 }
 
 #[cfg(feature = "std")]
-#[cfg_attr(doc, doc(cfg(feature = "std")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "std")))]
 impl Decode for SystemTime {
 	type Error = SystemTimeDecodeError;
 
@@ -919,8 +914,8 @@ impl Decode for usize {
 }
 
 #[cfg(feature = "alloc")]
-#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
-impl<T: Decode> Decode for alloc::vec::Vec<T> {
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "alloc")))]
+impl<T: Decode> Decode for Vec<T> {
 	type Error = CollectionDecodeError<Infallible, ItemDecodeError<usize, T::Error>>;
 
 	#[inline]
@@ -941,14 +936,54 @@ impl<T: Decode> Decode for alloc::vec::Vec<T> {
 				}
 			};
 
-			// SAFETY: Each index is within bounds (i.e. capac-
-			// ity).
+			// SAFETY: Each index is within bounds (i.e. less
+			// than `len`).
 			unsafe { buf.add(i).write(value) };
 		}
 
 		// SAFETY: We have initialised the buffer.
 		unsafe { this.set_len(len); }
 
+		Ok(this)
+	}
+}
+
+#[cfg(feature = "alloc")]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "alloc")))]
+impl<T: Decode> Decode for rc::Weak<T> {
+	type Error = <Option<Rc<T>> as Decode>::Error;
+
+	#[inline]
+	#[track_caller]
+	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
+		// No matter the presence of a value, the resulting
+		// pointer will still be dropped when the caller
+		// gets it. So we might as well not care.
+
+		// NOTE: The cursor still has to be moved forward.
+		let _ = Option::<Rc<T>>::decode(input)?;
+
+		let this = Self::new();
+		Ok(this)
+	}
+}
+
+#[cfg(all(feature = "alloc", target_has_atomic = "ptr"))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(all(feature = "alloc", target_has_atomic = "ptr"))))]
+impl<T: Decode> Decode for sync::Weak<T> {
+	type Error = <Option<Arc<T>> as Decode>::Error;
+
+	#[inline]
+	#[track_caller]
+	fn decode(input: &mut Input) -> Result<Self, Self::Error> {
+		// No matter the presence of a value, the resulting
+		// pointer will still be dropped when the caller
+		// gets it. So we might as well not care.
+
+		// NOTE: The cursor still has to be moved forward.
+		let _ = Option::<Arc<T>>::decode(input)?;
+
+		let this = Self::new();
 		Ok(this)
 	}
 }
@@ -975,7 +1010,7 @@ macro_rules! impl_numeric {
 			#[track_caller]
 			fn decode(input: &mut ::oct::decode::Input) -> ::core::result::Result<Self, Self::Error> {
 				let mut data = [::core::default::Default::default(); <Self as ::oct::encode::SizedEncode>::MAX_ENCODED_SIZE];
-				input.read_into(&mut data).unwrap();
+				input.read_into(&mut data);
 
 				let this = Self::from_le_bytes(data);
 				::core::result::Result::Ok(this)
@@ -990,10 +1025,10 @@ macro_rules! impl_tuple {
 		$($extra_tys:ident),*$(,)?
 	} => {
 		#[doc(hidden)]
-		impl<$ty, $($extra_tys, )* E> ::oct::decode::Decode for ($ty, $($extra_tys, )*)
+		impl<$ty, $($extra_tys,)* E> ::oct::decode::Decode for ($ty, $($extra_tys,)*)
 		where
 			$ty: ::oct::decode::Decode<Error = E>,
-			$($extra_tys: ::oct::decode::Decode<Error: ::core::convert::Into<E>>, )*
+			$($extra_tys: ::oct::decode::Decode<Error: ::core::convert::Into<E>>,)*
 		{
 			type Error = E;
 
@@ -1023,21 +1058,12 @@ macro_rules! impl_non_zero {
 			#[inline]
 			#[track_caller]
 			fn decode(input: &mut ::oct::decode::Input) -> ::core::result::Result<Self, Self::Error> {
-				use ::core::result::Result::{Err, Ok};
+ 				let Ok(value) = <$ty as ::oct::decode::Decode>::decode(input);
 
-				let Ok(value) = <$ty as ::oct::decode::Decode>::decode(input);
-
-				match value {
-					0x0 => {
-						__cold_path();
-						Err(::oct::error::NonZeroDecodeError)
-					},
-
-					value => {
-						let this = unsafe { ::core::num::NonZero::new_unchecked(value) };
-						Ok(this)
-					},
-				}
+				::core::num::NonZero::new(value).ok_or_else(|| {
+					::oct::__cold_path();
+					::oct::error::NonZeroDecodeError
+				})
 			}
 		}
 	};
@@ -1050,7 +1076,7 @@ macro_rules! impl_atomic {
 		atomic_ty: $atomic_ty:ty$(,)?
 	} => {
 		#[cfg(target_has_atomic = $width)]
-		#[cfg_attr(doc, doc(cfg(target_has_atomic = $width)))]
+		#[cfg_attr(feature = "unstable-docs", doc(cfg(target_has_atomic = $width)))]
 		impl ::oct::decode::Decode for $atomic_ty {
 			type Error = <$ty as ::oct::decode::Decode>::Error;
 

@@ -3,6 +3,23 @@
 This is the changelog of [Oct](https://crates.io/crates/oct/).
 See `README.md` for more information.
 
+## 0.23.0
+
+* Update lints
+* Decrease MSRV to 1.85 for `oct`
+* Add `unstable-docs` feature
+* Clean up code
+* Remove `T: Copy` bound from `Encode` and `SizedEncode` implementations for `UnsafeCell<T>`
+* Implement `Encode` for `rc::Weak` and `sync::Weak`
+* Implement `Decode` for `rc::Weak` and `sync::Weak`
+* Remove `OutputError` and `InputError`
+* Unmark all `Output` and `Input` functions with `const`
+* Panic on I/O errors
+* Make `Input::{peek, peek_into}` take constant `self` reference
+* Update tests
+* Implement `SizedEncode` for `rc::Weak` and `sync::Weak`
+* Update readme
+
 ## 0.22.0
 
 * Clean up code

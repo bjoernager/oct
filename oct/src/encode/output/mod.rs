@@ -8,8 +8,6 @@
 
 mod test;
 
-use crate::error::OutputError;
-
 use core::borrow::Borrow;
 use core::fmt::{self, Debug, Formatter};
 use core::ptr::copy_nonoverlapping;
@@ -25,29 +23,29 @@ impl<'a> Output<'a> {
 	/// Constructs a new output stream.
 	#[inline(always)]
 	#[must_use]
-	pub const fn new(buf: &'a mut [u8]) -> Self {
+	pub fn new(buf: &'a mut [u8]) -> Self {
 		Self { buf, pos: 0x0 }
 	}
 
 	/// Writes bytes to the stream.
 	///
-	/// # Errors
+	/// # Panics
 	///
-	/// If the requested amount of bytes could not be exactly written, then this method will return an error.
+	/// If the requested amount of bytes could not be exactly written, then this method will panic.
 	#[inline]
-	pub const fn write(&mut self, data: &[u8]) -> Result<(), OutputError> {
+	pub fn write(&mut self, data: &[u8]) {
 		let remaining = self.buf.len() - self.pos;
 		let count     = data.len();
 
-		if remaining < count {
-			return Err(OutputError {
-				capacity: self.buf.len(),
-				position: self.pos,
-				count,
-			});
-		}
+		assert!(
+			remaining >= count,
+			"cannot write `{}` byte(s) at `{}` to output stream of capacity `{}`",
+			count,
+			self.position(),
+			self.capacity(),
+		);
 
-		unsafe {
+ 		unsafe {
 			let src = data.as_ptr();
 			let dst = self.buf.as_mut_ptr().add(self.pos);
 
@@ -55,21 +53,19 @@ impl<'a> Output<'a> {
 		}
 
 		self.pos += count;
-
-		Ok(())
 	}
 
 	/// Retrieves the maximum capacity of the output stream.
 	#[inline(always)]
 	#[must_use]
-	pub const fn capacity(&self) -> usize {
+	pub fn capacity(&self) -> usize {
 		self.buf.len()
 	}
 
 	/// Retrieves the remaining, free capacity of the output stream.
 	#[inline(always)]
 	#[must_use]
-	pub const fn remaining(&self) -> usize {
+	pub fn remaining(&self) -> usize {
 		// SAFETY: The cursor position can never exceed the
 		// stream's capacity.
 		unsafe { self.capacity().unchecked_sub(self.position()) }
@@ -78,21 +74,21 @@ impl<'a> Output<'a> {
 	/// Retrieves the current cursor position of the output stream.
 	#[inline(always)]
 	#[must_use]
-	pub const fn position(&self) -> usize {
+	pub fn position(&self) -> usize {
 		self.pos
 	}
 
 	/// Gets a pointer to the first byte of the output stream.
 	#[inline(always)]
 	#[must_use]
-	pub const fn as_ptr(&self) -> *const u8 {
+	pub fn as_ptr(&self) -> *const u8 {
 		self.buf.as_ptr()
 	}
 
 	/// Gets a slice of the written bytes.
 	#[inline(always)]
 	#[must_use]
-	pub const fn as_slice(&self) -> &[u8] {
+	pub fn as_slice(&self) -> &[u8] {
 		unsafe {
 			let ptr = self.as_ptr();
 			let len = self.position();

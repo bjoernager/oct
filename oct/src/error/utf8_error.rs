@@ -24,7 +24,7 @@ pub struct Utf8Error {
 impl Display for Utf8Error {
 	#[inline]
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-		write!(f, "found invalid utf-8 octet {:#02X} at offset ({})", self.value, self.index)
+		write!(f, "found invalid utf-8 octet {:#02X} at offset `{}`", self.value, self.index)
 	}
 }
 

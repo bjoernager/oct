@@ -45,7 +45,7 @@ pub fn encode_enum(data: DataEnum, repr: Repr, error: Type) -> TokenStream {
 			match variant.fields {
 				Fields::Unit => quote! { Self::#variant_name },
 
-				Fields::Unnamed(_fields) => quote! { Self::#variant_name (#(ref #captures, )*) },
+				Fields::Unnamed(_fields) => quote! { Self::#variant_name (#(ref #captures,)*) },
 
 				Fields::Named(fields) => {
 					let field_names = fields
@@ -53,7 +53,7 @@ pub fn encode_enum(data: DataEnum, repr: Repr, error: Type) -> TokenStream {
 						.into_iter()
 						.map(|field| field.ident.unwrap());
 
-					quote! { Self::#variant_name { #(#field_names: ref #captures, )* } }
+					quote! { Self::#variant_name { #(#field_names: ref #captures,)* } }
 				},
 			}
 		});

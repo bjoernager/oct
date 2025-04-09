@@ -35,34 +35,38 @@ use std::ffi::{OsStr, OsString};
 ///
 /// [\[T\]]: slice
 #[doc(alias("DeserialiseBorrowed", "DeserializeBorrowed"))]
-pub trait DecodeBorrowed<B: ?Sized>: Borrow<B> + Decode { }
+pub trait DecodeBorrowed<B>
+where
+	Self: Borrow<B> + Decode,
+	B:    ?Sized,
+{ }
 
 impl<T: Decode> DecodeBorrowed<T> for T { }
 
 #[cfg(all(feature = "alloc", target_has_atomic = "ptr"))]
-#[cfg_attr(doc, doc(cfg(all(feature = "alloc", target_has_atomic = "ptr"))))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(all(feature = "alloc", target_has_atomic = "ptr"))))]
 impl<T: Decode> DecodeBorrowed<T> for Arc<T> { }
 
 #[cfg(feature = "alloc")]
-#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "alloc")))]
 impl<T: Decode> DecodeBorrowed<T> for Box<T> { }
 
 #[cfg(feature = "alloc")]
-#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "alloc")))]
 impl DecodeBorrowed<CStr> for CString { }
 
 #[cfg(feature = "std")]
-#[cfg_attr(doc, doc(cfg(feature = "std")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "std")))]
 impl DecodeBorrowed<OsStr> for OsString { }
 
 #[cfg(feature = "alloc")]
-#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "alloc")))]
 impl<T: Decode> DecodeBorrowed<T> for Rc<T> { }
 
 #[cfg(feature = "alloc")]
-#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "alloc")))]
 impl DecodeBorrowed<str> for alloc::string::String { }
 
 #[cfg(feature = "alloc")]
-#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "alloc")))]
 impl<T: Decode> DecodeBorrowed<[T]> for alloc::vec::Vec<T> { }

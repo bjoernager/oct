@@ -50,6 +50,6 @@ pub use input::Input;
 /// [Error]: Encode::Error
 /// [GenericDecodeError]: crate::error::GenericDecodeError
 #[cfg(feature = "proc-macro")]
-#[cfg_attr(doc, doc(cfg(feature = "proc-macro")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "proc-macro")))]
 #[doc(inline)]
 pub use oct_macros::Decode;

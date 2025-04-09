@@ -8,8 +8,6 @@
 
 mod test;
 
-use crate::error::InputError;
-
 use core::borrow::Borrow;
 use core::fmt::{self, Debug, Formatter};
 use core::ptr::copy_nonoverlapping;
@@ -19,6 +17,33 @@ use core::slice;
 pub struct Input<'a> {
 	buf: &'a [u8],
 	pos: usize,
+}
+
+// FIXME: Needed due to borrow rules; can't simply
+// use the method.
+macro_rules! peek {
+	($self:expr, $count:expr$(,)?) => {{
+		let this: &Input = $self;
+
+		let count: usize = $count;
+
+		let remaining = this.buf.len() - this.pos;
+
+		if remaining < count {
+			panic!(
+				"cannot peek or read `{}` bytes at `{}` from input stream of capacity `{}`",
+				count,
+				this.position(),
+				this.capacity(),
+			)
+		}
+
+		unsafe {
+			let ptr = this.buf.as_ptr().add(this.pos);
+
+			slice::from_raw_parts(ptr, count)
+		}
+	}};
 }
 
 impl<'a> Input<'a> {
@@ -33,38 +58,30 @@ impl<'a> Input<'a> {
 	///
 	/// This method may be preferred over [`read_into`](Self::read_into) if the read data aren't directly needed, such as if an iterator is applied anyway to map the data.
 	///
-	/// # Errors
+	/// # Panics
 	///
-	/// If the requested amount of bytes could not be exactly read, then this method will return an error.
+	/// If the requested amount of bytes could not be exactly read, then this method will panic.
 	#[inline]
-	pub const fn read(&mut self, count: usize) -> Result<&'a [u8], InputError> {
-		let data = match self.peek(count) {
-			Ok(data) => data,
-
-			Err(e) => return Err(e),
-		};
+	pub fn read(&mut self, count: usize) -> &[u8] {
+		let data = peek!(self, count);
 
 		self.pos += count;
 
-		Ok(data)
+		data
 	}
 
 	/// Reads bytes from the stream into a predefined buffer.
 	///
 	/// This method may be preferred over [`read`](Self::read) if the read data are *directly* needed, e.g. if all required transformations can be done in-place.
 	///
-	/// # Errors
+	/// # Panic
 	///
-	/// If the provided buffer could not be completely filled, then this method will return an error.
+	/// If the provided buffer could not be completely filled, then this method will panic.
 	#[inline]
-	pub const fn read_into(&mut self, buf: &mut [u8]) -> Result<(), InputError> {
-		if let Err(e) = self.peek_into(buf) {
-			return Err(e);
-		}
+	pub fn read_into(&mut self, buf: &mut [u8]) {
+		self.peek_into(buf);
 
 		self.pos += buf.len();
-
-		Ok(())
 	}
 
 	/// Reads bytes from the stream without moving the cursor.
@@ -72,28 +89,12 @@ impl<'a> Input<'a> {
 	/// This method may be preferred over [`read`](Self::read) if the same bytes may be needed more than once.
 	/// It may additionally be preferred over [`peek_into`](Self::peek_into) if the read data aren't directly needed, such as if an iterator is applied anyway to map the data.
 	///
-	/// # Errors
+	/// # Panics
 	///
-	/// If the requested amount of bytes could not be exactly read, then this method will return an error.
+	/// If the requested amount of bytes could not be exactly read, then this method will panic.
 	#[inline]
-	pub const fn peek(&mut self, count: usize) -> Result<&'a [u8], InputError> {
-		let remaining = self.buf.len() - self.pos;
-
-		if remaining < count {
-			return Err(InputError {
-				capacity: self.buf.len(),
-				position: self.pos,
-				count,
-			});
-		}
-
-		let data = unsafe {
-			let ptr = self.buf.as_ptr().add(self.pos);
-
-			slice::from_raw_parts(ptr, count)
-		};
-
-		Ok(data)
+	pub fn peek(&self, count: usize) -> &[u8] {
+		peek!(self, count)
 	}
 
 	/// Reads bytes from the stream into a predefined buffer without moving the cursor.
@@ -101,21 +102,21 @@ impl<'a> Input<'a> {
 	/// This method may be preferred over [`read_into`](Self::read_into) if the same bytes may be needed more than once.
 	/// It may additionally be preferred over [`read`](Self::read) if the read data are *directly* needed, e.g. if all required transformations can be done in-place.
 	///
-	/// # Errors
+	/// # Panics
 	///
-	/// If the provided buffer could not be completely filled, then this method will return an error.
+	/// If the provided buffer could not be completely filled, then this method will panic.
 	#[inline]
-	pub const fn peek_into(&mut self, buf: &mut [u8]) -> Result<(), InputError> {
+	pub fn peek_into(&self, buf: &mut [u8]) {
 		let count     = buf.len();
 		let remaining = self.remaining();
 
-		if remaining < count {
-			return Err(InputError {
-				capacity: self.buf.len(),
-				position: self.pos,
-				count,
-			});
-		}
+		assert!(
+			remaining >= count,
+			"cannot peek or read `{}` bytes at `{}` from input stream of capacity `{}`",
+			count,
+			self.position(),
+			self.capacity(),
+		);
 
 		unsafe {
 			let src = self.buf.as_ptr().add(self.pos);
@@ -123,21 +124,19 @@ impl<'a> Input<'a> {
 
 			copy_nonoverlapping(src, dst, count);
 		}
-
-		Ok(())
 	}
 
 	/// Retrieves the maximum capacity of the input stream.
 	#[inline(always)]
 	#[must_use]
-	pub const fn capacity(&self) -> usize {
+	pub fn capacity(&self) -> usize {
 		self.buf.len()
 	}
 
 	/// Retrieves the remaining, free capacity of the input stream.
 	#[inline(always)]
 	#[must_use]
-	pub const fn remaining(&self) -> usize {
+	pub fn remaining(&self) -> usize {
 		// SAFETY: The cursor position can never exceed the
 		// stream's capacity.
 		unsafe { self.capacity().unchecked_sub(self.position()) }
@@ -146,21 +145,21 @@ impl<'a> Input<'a> {
 	/// Retrieves the current cursor position of the input stream.
 	#[inline(always)]
 	#[must_use]
-	pub const fn position(&self) -> usize {
+	pub fn position(&self) -> usize {
 		self.pos
 	}
 
 	/// Gets a pointer to the next byte of the input stream.
 	#[inline(always)]
 	#[must_use]
-	pub const fn as_ptr(&self) -> *const u8 {
+	pub fn as_ptr(&self) -> *const u8 {
 		unsafe { self.buf.as_ptr().add(self.position()) }
 	}
 
 	/// Gets a slice of the remaining bytes.
 	#[inline(always)]
 	#[must_use]
-	pub const fn as_slice(&self) -> &[u8] {
+	pub fn as_slice(&self) -> &[u8] {
 		unsafe {
 			let ptr = self.as_ptr();
 			let len = self.remaining();

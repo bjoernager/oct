@@ -25,7 +25,7 @@ impl Display for IsizeEncodeError {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		write!(
 			f,
-			"signed size value ({}) cannot be serialised: must be in the range ({}) to ({})",
+			"signed size value `{}` cannot be serialised: must be in the range `{}` to `{}`",
 			self.0,
 			i16::MIN,
 			i16::MAX,

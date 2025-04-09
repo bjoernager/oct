@@ -39,11 +39,11 @@ use core::time::Duration;
 use {
 	alloc::borrow::{Cow, ToOwned},
 	alloc::boxed::Box,
-	alloc::rc::Rc,
+	alloc::rc::{self, Rc},
 };
 
 #[cfg(all(feature = "alloc", target_has_atomic = "ptr"))]
-use alloc::sync::Arc;
+use alloc::sync::{self, Arc};
 
 #[cfg(feature = "std")]
 use {
@@ -78,8 +78,8 @@ impl<T: SizedEncode + ?Sized> SizedEncode for &mut T {
 }
 
 /// Implemented for tuples with up to twelve members.
-#[cfg_attr(doc, doc(fake_variadic))]
-impl<T: SizedEncode> SizedEncode for (T, ) {
+#[cfg_attr(feature = "unstable-docs", doc(fake_variadic))]
+impl<T: SizedEncode> SizedEncode for (T,) {
 	#[doc(hidden)]
 	const MAX_ENCODED_SIZE: usize = T::MAX_ENCODED_SIZE;
 }
@@ -89,7 +89,7 @@ impl<T: SizedEncode, const N: usize> SizedEncode for [T; N] {
 }
 
 #[cfg(all(feature = "alloc", target_has_atomic = "ptr"))]
-#[cfg_attr(doc, doc(cfg(all(feature = "alloc", target_has_atomic = "ptr"))))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(all(feature = "alloc", target_has_atomic = "ptr"))))]
 impl<T: SizedEncode + ?Sized> SizedEncode for Arc<T> {
 	const MAX_ENCODED_SIZE: usize = T::MAX_ENCODED_SIZE;
 }
@@ -105,7 +105,7 @@ impl<T: SizedEncode> SizedEncode for Bound<T> {
 }
 
 #[cfg(feature = "alloc")]
-#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "alloc")))]
 impl<T: SizedEncode + ?Sized> SizedEncode for Box<T> {
 	const MAX_ENCODED_SIZE: usize = T::MAX_ENCODED_SIZE;
 }
@@ -123,7 +123,7 @@ impl SizedEncode for char {
 }
 
 #[cfg(feature = "alloc")]
-#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "alloc")))]
 impl<T: SizedEncode + ?Sized + ToOwned> SizedEncode for Cow<'_, T> {
 	const MAX_ENCODED_SIZE: usize = T::MAX_ENCODED_SIZE;
 }
@@ -135,13 +135,13 @@ impl SizedEncode for Duration {
 }
 
 #[cfg(feature = "f16")]
-#[cfg_attr(doc, doc(cfg(feature = "f16")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "f16")))]
 impl SizedEncode for f16 {
 	const MAX_ENCODED_SIZE: usize = size_of::<Self>();
 }
 
 #[cfg(feature = "f128")]
-#[cfg_attr(doc, doc(cfg(feature = "f128")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "f128")))]
 impl SizedEncode for f128 {
 	const MAX_ENCODED_SIZE: usize = size_of::<Self>();
 }
@@ -153,7 +153,7 @@ impl SizedEncode for Infallible {
 impl SizedEncode for IpAddr {
 	const MAX_ENCODED_SIZE: usize =
 		u8::MAX_ENCODED_SIZE
-		+ Ipv6Addr::MAX_ENCODED_SIZE;
+		+ enum_encoded_size!((Ipv4Addr), (Ipv6Addr));
 }
 
 impl SizedEncode for Ipv4Addr {
@@ -173,13 +173,13 @@ impl<T: SizedEncode> SizedEncode for LazyCell<T> {
 }
 
 #[cfg(feature = "std")]
-#[cfg_attr(doc, doc(cfg(feature = "std")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "std")))]
 impl<T: SizedEncode> SizedEncode for LazyLock<T> {
 	const MAX_ENCODED_SIZE: usize = T::MAX_ENCODED_SIZE;
 }
 
 #[cfg(feature = "std")]
-#[cfg_attr(doc, doc(cfg(feature = "std")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "std")))]
 impl<T: SizedEncode + ?Sized> SizedEncode for Mutex<T> {
 	const MAX_ENCODED_SIZE: usize = T::MAX_ENCODED_SIZE;
 }
@@ -223,7 +223,7 @@ impl<T: SizedEncode> SizedEncode for RangeToInclusive<T> {
 }
 
 #[cfg(feature = "alloc")]
-#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "alloc")))]
 impl<T: SizedEncode + ?Sized> SizedEncode for Rc<T> {
 	const MAX_ENCODED_SIZE: usize = T::MAX_ENCODED_SIZE;
 }
@@ -243,7 +243,7 @@ where
 }
 
 #[cfg(feature = "std")]
-#[cfg_attr(doc, doc(cfg(feature = "std")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "std")))]
 impl<T: SizedEncode + ?Sized> SizedEncode for RwLock<T> {
 	const MAX_ENCODED_SIZE: usize = T::MAX_ENCODED_SIZE;
 }
@@ -255,7 +255,7 @@ impl<T: SizedEncode> SizedEncode for Saturating<T> {
 impl SizedEncode for SocketAddr {
 	const MAX_ENCODED_SIZE: usize =
 		u8::MAX_ENCODED_SIZE
-		+ SocketAddrV6::MAX_ENCODED_SIZE;
+		+ enum_encoded_size!((SocketAddrV4), (SocketAddrV6));
 }
 
 impl SizedEncode for SocketAddrV4 {
@@ -273,7 +273,7 @@ impl SizedEncode for SocketAddrV6 {
 }
 
 #[cfg(feature = "std")]
-#[cfg_attr(doc, doc(cfg(feature = "std")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "std")))]
 impl SizedEncode for SystemTime {
 	const MAX_ENCODED_SIZE: usize = i64::MAX_ENCODED_SIZE;
 }
@@ -282,12 +282,24 @@ impl SizedEncode for () {
 	const MAX_ENCODED_SIZE: usize = 0x0;
 }
 
-impl<T: Copy + SizedEncode> SizedEncode for UnsafeCell<T> {
+impl<T: SizedEncode> SizedEncode for UnsafeCell<T> {
 	const MAX_ENCODED_SIZE: usize = T::MAX_ENCODED_SIZE;
 }
 
 impl SizedEncode for usize {
 	const MAX_ENCODED_SIZE: Self = u16::MAX_ENCODED_SIZE;
+}
+
+#[cfg(feature = "alloc")]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "alloc")))]
+impl<T: SizedEncode> SizedEncode for rc::Weak<T> {
+	const MAX_ENCODED_SIZE: usize = Option::<Rc<T>>::MAX_ENCODED_SIZE;
+}
+
+#[cfg(all(feature = "alloc", target_has_atomic = "ptr"))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(all(feature = "alloc", target_has_atomic = "ptr"))))]
+impl<T: SizedEncode> SizedEncode for sync::Weak<T> {
+	const MAX_ENCODED_SIZE: usize = Option::<Arc<T>>::MAX_ENCODED_SIZE;
 }
 
 impl<T: SizedEncode> SizedEncode for Wrapping<T> {
@@ -307,10 +319,12 @@ macro_rules! impl_tuple {
 		$($tys:ident),+$(,)?
 	} => {
 		#[doc(hidden)]
-		impl<$($tys, )* E> ::oct::encode::SizedEncode for ($($tys, )*)
+		impl<$($tys,)* E> ::oct::encode::SizedEncode for ($($tys,)*)
 		where
-			$($tys: Encode<Error = E> + SizedEncode, )* {
-			const MAX_ENCODED_SIZE: usize = 0x0 $(+ <$tys as ::oct::encode::SizedEncode>::MAX_ENCODED_SIZE)*;
+			$($tys: Encode<Error = E> + SizedEncode,)* {
+			const MAX_ENCODED_SIZE: usize =
+				0x0
+				$(+ <$tys as ::oct::encode::SizedEncode>::MAX_ENCODED_SIZE)*;
 		}
 	};
 }
@@ -330,7 +344,7 @@ macro_rules! impl_atomic {
 		atomic_ty: $atomic_ty:ty$(,)?
 	} => {
 		#[cfg(target_has_atomic = $width)]
-		#[cfg_attr(doc, doc(cfg(target_has_atomic = $width)))]
+		#[cfg_attr(feature = "unstable-docs", doc(cfg(target_has_atomic = $width)))]
 		impl ::oct::encode::SizedEncode for $atomic_ty {
 			const MAX_ENCODED_SIZE: usize = <$ty as ::oct::encode::SizedEncode>::MAX_ENCODED_SIZE;
 		}

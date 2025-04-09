@@ -7,8 +7,8 @@
 -->
 
 <svg height="144" width="144" xmlns="http://www.w3.org/2000/svg">
-	<mask id="tHorizontalArm">
-		<rect fill="white" height="100%" width="100%" x="0" y="0" />
+	<mask id="tVerticalArm">
+		<rect fill="white" height="144" width="144" x="0" y="0" />
 		<circle cx="72" cy="72" fill="none" r="32" stroke="black" stroke-width="24" />
 	</mask>
 
@@ -18,9 +18,9 @@
 
 		<!-- T: -->
 		<rect fill="white" height="16" paint-order="stroke" stroke="black" stroke-width="8" width="112" x="16" y="64" />
-		<rect fill="white" height="112" mask="url(#tHorizontalArm)" width="16" x="64" y="16" />
+		<rect fill="white" height="112" mask="url(#tVerticalArm)" width="16" x="64" y="16" />
 	</mask>
 
-	<rect fill="#02764A" height="100%" width="100%" x="0" y="0" /> <!-- oklch(50% 0.115300 158.520) -->
-	<rect fill="#FFFFFF" height="100%" mask="url(#glyph)" width="100%" x="0" y="0" />
+	<rect fill="#02764A" height="144" width="144" x="0" y="0" /> <!-- oklch(50% 0.115300 158.520) -->
+	<rect fill="#FFFFFF" height="144" mask="url(#glyph)" width="144" x="0" y="0" />
 </svg>

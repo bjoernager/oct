@@ -51,11 +51,13 @@ use {
 	alloc::boxed::Box,
 	alloc::collections::{BinaryHeap, LinkedList},
 	alloc::ffi::CString,
-	alloc::rc::Rc,
+	alloc::rc::{self, Rc},
+	alloc::string::String,
+	alloc::vec::Vec,
 };
 
 #[cfg(all(feature = "alloc", target_has_atomic = "ptr"))]
-use alloc::sync::Arc;
+use alloc::sync::{self, Arc};
 
 #[cfg(feature = "std")]
 use {
@@ -152,8 +154,8 @@ impl<T: Encode + ?Sized> Encode for &mut T {
 }
 
 /// Implemented for tuples with up to twelve members.
-#[cfg_attr(doc, doc(fake_variadic))]
-impl<T: Encode> Encode for (T, ) {
+#[cfg_attr(feature = "unstable-docs", doc(fake_variadic))]
+impl<T: Encode> Encode for (T,) {
 	type Error = T::Error;
 
 	#[inline(always)]
@@ -205,7 +207,7 @@ impl<T: Encode> Encode for [T] {
 }
 
 #[cfg(all(feature = "alloc", target_has_atomic = "ptr"))]
-#[cfg_attr(doc, doc(cfg(all(feature = "alloc", target_has_atomic = "ptr"))))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(all(feature = "alloc", target_has_atomic = "ptr"))))]
 impl<T: Encode + ?Sized> Encode for Arc<T> {
 	type Error = T::Error;
 
@@ -217,7 +219,7 @@ impl<T: Encode + ?Sized> Encode for Arc<T> {
 }
 
 #[cfg(feature = "alloc")]
-#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "alloc")))]
 impl<T: Encode> Encode for BinaryHeap<T> {
 	type Error = <[T] as Encode>::Error;
 
@@ -266,7 +268,7 @@ impl<T: Encode> Encode for Bound<T> {
 }
 
 #[cfg(feature = "alloc")]
-#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "alloc")))]
 impl<T: Encode + ?Sized> Encode for Box<T> {
 	type Error = T::Error;
 
@@ -289,7 +291,7 @@ impl Encode for CStr {
 }
 
 #[cfg(feature = "alloc")]
-#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "alloc")))]
 impl Encode for CString {
 	type Error = <CStr as Encode>::Error;
 
@@ -335,7 +337,7 @@ impl Encode for char {
 }
 
 #[cfg(feature = "alloc")]
-#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "alloc")))]
 impl<T: Encode + ToOwned + ?Sized> Encode for Cow<'_, T> {
 	type Error = T::Error;
 
@@ -361,35 +363,35 @@ impl Encode for Duration {
 }
 
 #[cfg(feature = "f128")]
-#[cfg_attr(doc, doc(cfg(feature = "f128")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "f128")))]
 impl Encode for f128 {
 	type Error = Infallible;
 
 	#[inline]
 	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
-		output.write(&self.to_le_bytes()).unwrap();
+		output.write(&self.to_le_bytes());
 
 		Ok(())
 	}
 }
 
 #[cfg(feature = "f16")]
-#[cfg_attr(doc, doc(cfg(feature = "f16")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "f16")))]
 impl Encode for f16 {
 	type Error = Infallible;
 
 	#[inline]
 	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
-		output.write(&self.to_le_bytes()).unwrap();
+		output.write(&self.to_le_bytes());
 
 		Ok(())
 	}
 }
 
 #[cfg(feature = "std")]
-#[cfg_attr(doc, doc(cfg(feature = "std")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "std")))]
 impl<K, V, S, E> Encode for HashMap<K, V, S>
 where
 	K: Encode<Error = E>,
@@ -414,7 +416,7 @@ where
 }
 
 #[cfg(feature = "std")]
-#[cfg_attr(doc, doc(cfg(feature = "std")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "std")))]
 impl<K, S> Encode for HashSet<K, S>
 where
 	K: Encode,
@@ -528,7 +530,7 @@ impl<T: Encode> Encode for LazyCell<T> {
 }
 
 #[cfg(feature = "std")]
-#[cfg_attr(doc, doc(cfg(feature = "std")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "std")))]
 impl<T: Encode> Encode for LazyLock<T> {
 	type Error = T::Error;
 
@@ -540,7 +542,7 @@ impl<T: Encode> Encode for LazyLock<T> {
 }
 
 #[cfg(feature = "alloc")]
-#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "alloc")))]
 impl<T: Encode> Encode for LinkedList<T> {
 	type Error = CollectionEncodeError<UsizeEncodeError, ItemEncodeError<usize, T::Error>>;
 
@@ -563,7 +565,7 @@ impl<T: Encode> Encode for LinkedList<T> {
 }
 
 #[cfg(feature = "std")]
-#[cfg_attr(doc, doc(cfg(feature = "std")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "std")))]
 impl<T: Encode + ?Sized> Encode for Mutex<T> {
 	type Error = T::Error;
 
@@ -586,15 +588,10 @@ impl<T: Encode> Encode for Option<T> {
 	/// If `Some`, then the contained value is encoded after this sign..
 	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
-		match *self {
-			None => {
-				false.encode(output).map_err(EnumEncodeError::BadDiscriminant)?;
-			}
+		let Ok(()) = self.is_some().encode(output);
 
-			Some(ref v) => {
-				true.encode(output).map_err(EnumEncodeError::BadDiscriminant)?;
-				v.encode(output).map_err(EnumEncodeError::BadField)?;
-			}
+		if let Some(ref value) = *self {
+			value.encode(output).map_err(EnumEncodeError::BadField)?;
 		};
 
 		Ok(())
@@ -602,7 +599,7 @@ impl<T: Encode> Encode for Option<T> {
 }
 
 #[cfg(feature = "std")]
-#[cfg_attr(doc, doc(cfg(feature = "std")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "std")))]
 impl Encode for OsStr {
 	type Error = CollectionEncodeError<UsizeEncodeError, Utf8Error>;
 
@@ -643,7 +640,7 @@ impl Encode for OsStr {
 }
 
 #[cfg(feature = "std")]
-#[cfg_attr(doc, doc(cfg(feature = "std")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "std")))]
 impl Encode for OsString {
 	type Error = <OsStr as Encode>::Error;
 
@@ -744,7 +741,7 @@ impl<T: Encode> Encode for RangeToInclusive<T> {
 }
 
 #[cfg(feature = "alloc")]
-#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "alloc")))]
 impl<T: Encode + ?Sized> Encode for Rc<T> {
 	type Error = T::Error;
 
@@ -782,17 +779,16 @@ where
 	#[inline]
 	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
+		let Ok(()) = self.is_err().encode(output);
+
 		match *self {
 			Ok(ref v) => {
-				false.encode(output).map_err(EnumEncodeError::BadDiscriminant)?;
 				v.encode(output).map_err(EnumEncodeError::BadField)?;
 			}
 
 			Err(ref e) => {
-				true.encode(output).map_err(EnumEncodeError::BadDiscriminant)?;
-
 				e.encode(output)
-					.map_err(Into::<Err>::into)
+					.map_err(Into::into)
 					.map_err(EnumEncodeError::BadField)?;
 			}
 		};
@@ -802,7 +798,7 @@ where
 }
 
 #[cfg(feature = "std")]
-#[cfg_attr(doc, doc(cfg(feature = "std")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "std")))]
 impl<T: Encode + ?Sized> Encode for RwLock<T> {
 	type Error = T::Error;
 
@@ -894,8 +890,8 @@ impl Encode for str {
 }
 
 #[cfg(feature = "alloc")]
-#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
-impl Encode for alloc::string::String {
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "alloc")))]
+impl Encode for String {
 	type Error = <str as Encode>::Error;
 
 	/// See [`prim@str`].
@@ -907,7 +903,7 @@ impl Encode for alloc::string::String {
 }
 
 #[cfg(feature = "std")]
-#[cfg_attr(doc, doc(cfg(feature = "std")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "std")))]
 impl Encode for SystemTime {
 	type Error = <i64 as Encode>::Error;
 
@@ -954,7 +950,7 @@ impl Encode for () {
 	}
 }
 
-impl<T: Copy + Encode> Encode for UnsafeCell<T> {
+impl<T: Encode> Encode for UnsafeCell<T> {
 	type Error = T::Error;
 
 	#[inline(always)]
@@ -962,7 +958,7 @@ impl<T: Copy + Encode> Encode for UnsafeCell<T> {
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		// SAFETY: The pointer returned by `Self::get` is
 		// valid for reading for the lifetime of `self`.
-		let value = unsafe { *self.get() };
+		let value = unsafe { &*self.get() };
 
 		value.encode(output)
 	}
@@ -990,14 +986,44 @@ impl Encode for usize {
 }
 
 #[cfg(feature = "alloc")]
-#[cfg_attr(doc, doc(cfg(feature = "alloc")))]
-impl<T: Encode> Encode for alloc::vec::Vec<T> {
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "alloc")))]
+impl<T: Encode> Encode for Vec<T> {
 	type Error = <[T] as Encode>::Error;
 
 	#[inline(always)]
 	#[track_caller]
 	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
 		self.as_slice().encode(output)
+	}
+}
+
+#[cfg(feature = "alloc")]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "alloc")))]
+impl<T: Encode + ?Sized> Encode for rc::Weak<T> {
+	type Error = <Option<Rc::<T>> as Encode>::Error;
+
+	/// Encodes the value referenced by `Self`.
+	///
+	/// If the reference counter is broken (i.e. the underlying item has been dropped), then no value will be encoded.
+	#[inline(always)]
+	#[track_caller]
+	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
+		self.upgrade().encode(output)
+	}
+}
+
+#[cfg(all(feature = "alloc", target_has_atomic = "ptr"))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(all(feature = "alloc", target_has_atomic = "ptr"))))]
+impl<T: Encode + ?Sized> Encode for sync::Weak<T> {
+	type Error = <Option<Arc::<T>> as Encode>::Error;
+
+	/// Encodes the value referenced by `Self`.
+	///
+	/// If the reference counter is broken (i.e. the underlying item has been dropped), then no value will be encoded.
+	#[inline(always)]
+	#[track_caller]
+	fn encode(&self, output: &mut Output) -> Result<(), Self::Error> {
+		self.upgrade().encode(output)
 	}
 }
 
@@ -1019,7 +1045,7 @@ macro_rules! impl_numeric {
 			#[inline]
 			#[track_caller]
 			fn encode(&self, output: &mut ::oct::encode::Output) -> ::core::result::Result<(), Self::Error> {
-				output.write(&self.to_le_bytes()).unwrap();
+				output.write(&self.to_le_bytes());
 
 				Ok(())
 			}
@@ -1033,17 +1059,17 @@ macro_rules! impl_tuple {
 		$($extra_captures:ident: $extra_tys:ident),*$(,)?
 	} => {
 		#[doc(hidden)]
-		impl<$ty, $($extra_tys, )* E> ::oct::encode::Encode for ($ty, $($extra_tys, )*)
+		impl<$ty, $($extra_tys,)* E> ::oct::encode::Encode for ($ty, $($extra_tys,)*)
 		where
 			$ty: ::oct::encode::Encode<Error = E>,
-			$($extra_tys: ::oct::encode::Encode<Error: ::core::convert::Into<E>>, )*
+			$($extra_tys: ::oct::encode::Encode<Error: ::core::convert::Into<E>>,)*
 		{
 			type Error = E;
 
 			#[inline(always)]
 			#[track_caller]
 			fn encode(&self, output: &mut ::oct::encode::Output) -> ::core::result::Result<(), Self::Error> {
-				let (ref $capture, $(ref $extra_captures, )*) = *self;
+				let (ref $capture, $(ref $extra_captures,)*) = *self;
 
 				<$ty as ::oct::encode::Encode>::encode($capture, output)?;
 
@@ -1079,7 +1105,7 @@ macro_rules! impl_atomic {
 		atomic_ty: $atomic_ty:ty$(,)?
 	} => {
 		#[cfg(target_has_atomic = $width)]
-		#[cfg_attr(doc, doc(cfg(target_has_atomic = $width)))]
+		#[cfg_attr(feature = "unstable-docs", doc(cfg(target_has_atomic = $width)))]
 		impl ::oct::encode::Encode for $atomic_ty {
 			type Error = <$ty as ::oct::encode::Encode>::Error;
 

@@ -40,7 +40,7 @@ pub enum GenericDecodeError {
 	BadString(Utf8Error),
 
 	#[cfg(feature = "std")]
-	#[cfg_attr(doc, doc(cfg(feature = "std")))]
+	#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "std")))]
 	/// The [`SystemTime`](std::time::SystemTime) type was too narrow.
 	NarrowSystemTime(SystemTimeDecodeError),
 
@@ -70,7 +70,6 @@ impl Display for GenericDecodeError {
 			=> write!(f, "{e}"),
 
 			#[cfg(feature = "std")]
-			#[cfg_attr(doc, doc(cfg(feature = "std")))]
 			Self::NarrowSystemTime(ref e)
 			=> write!(f, "{e}"),
 
@@ -98,7 +97,6 @@ impl Error for GenericDecodeError {
 			Self::BadString(ref e) => Some(e),
 
 			#[cfg(feature = "std")]
-			#[cfg_attr(doc, doc(cfg(feature = "std")))]
 			Self::NarrowSystemTime(ref e) => Some(e),
 
 			Self::NonBool(ref e) => Some(e),
@@ -192,7 +190,7 @@ impl From<LengthError> for GenericDecodeError {
 }
 
 #[cfg(feature = "std")]
-#[cfg_attr(doc, doc(cfg(feature = "std")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "std")))]
 impl From<SystemTimeDecodeError> for GenericDecodeError {
 	#[inline(always)]
 	fn from(value: SystemTimeDecodeError) -> Self {

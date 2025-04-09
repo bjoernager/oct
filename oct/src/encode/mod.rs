@@ -197,7 +197,7 @@ pub use sized_encode::SizedEncode;
 /// }
 /// ```
 #[cfg(feature = "proc-macro")]
-#[cfg_attr(doc, doc(cfg(feature = "proc-macro")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "proc-macro")))]
 #[doc(inline)]
 pub use oct_macros::Encode;
 
@@ -211,6 +211,6 @@ pub use oct_macros::Encode;
 ///
 /// Do remember that deriving this trait is only recommended
 #[cfg(feature = "proc-macro")]
-#[cfg_attr(doc, doc(cfg(feature = "proc-macro")))]
+#[cfg_attr(feature = "unstable-docs", doc(cfg(feature = "proc-macro")))]
 #[doc(inline)]
 pub use oct_macros::SizedEncode;

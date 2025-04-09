@@ -9,7 +9,6 @@
 #![cfg(test)]
 
 use oct::decode::Input;
-use oct::error::InputError;
 
 #[test]
 fn test_decode_input() {
@@ -22,35 +21,40 @@ fn test_decode_input() {
 	assert_eq!(input.remaining(), 0x4);
 
 	assert_eq!(input, [0xFF, 0xFE, 0xFD, 0xFC].as_slice());
-	assert_eq!(input.read(0x1), Ok([0xFF].as_slice()));
+	assert_eq!(input.read(0x1), [0xFF].as_slice());
 
 	assert_eq!(input.capacity(),  0x4);
 	assert_eq!(input.position(),  0x1);
 	assert_eq!(input.remaining(), 0x3);
 
 	assert_eq!(input, [0xFE, 0xFD, 0xFC].as_slice());
-	assert_eq!(input.read(0x1), Ok([0xFE].as_slice()));
+	assert_eq!(input.read(0x1), [0xFE].as_slice());
 
 	assert_eq!(input.capacity(),  0x4);
 	assert_eq!(input.position(),  0x2);
 	assert_eq!(input.remaining(), 0x2);
 
 	assert_eq!(input, [0xFD, 0xFC].as_slice());
-	assert_eq!(input.read(0x1), Ok([0xFD].as_slice()));
+	assert_eq!(input.read(0x1), [0xFD].as_slice());
 
 	assert_eq!(input.capacity(),  0x4);
 	assert_eq!(input.position(),  0x3);
 	assert_eq!(input.remaining(), 0x1);
 
 	assert_eq!(input, [0xFC].as_slice());
-	assert_eq!(input.read(0x1), Ok([0xFC].as_slice()));
+	assert_eq!(input.read(0x1), [0xFC].as_slice());
 
 	assert_eq!(input.capacity(),  0x4);
 	assert_eq!(input.position(),  0x4);
 	assert_eq!(input.remaining(), 0x0);
 
-	assert_eq!(input, [].as_slice());
-	assert_eq!(input.read(0x1), Err(InputError { capacity: 0x4, position: 0x4, count: 0x1 }));
+	assert_eq!(input.read(0x0), [].as_slice());
+}
 
-	assert_eq!(input.read(0x0), Ok([].as_slice()));
+#[should_panic]
+#[test]
+fn test_decode_input_empty() {
+	let mut input = Input::new(&[]);
+
+	input.read(0x1);
 }

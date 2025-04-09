@@ -29,6 +29,6 @@ pub fn sized_encode_enum(data: DataEnum, repr: Repr) -> TokenStream {
 		.collect();
 
 	quote! {
-		const MAX_ENCODED_SIZE: usize = ::oct::enum_encoded_size!(#((#(#tys, )*), )*);
+		const MAX_ENCODED_SIZE: usize = ::oct::enum_encoded_size!(#((#(#tys,)*),)*);
 	}
 }
