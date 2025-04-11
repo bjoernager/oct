@@ -24,33 +24,39 @@
 //! As Oct is optimised exclusively for a single, binary format, it *may* outperform other libraries that are more generic in nature.
 //!
 //! The `oct-benchmarks` binary compares multiple scenarios using Oct and other, similar crates.
-//! According to my runs on an AMD Ryzen 7 3700X with default settings, these benchmarks indicate that Oct usually outperforms the other tested crates -- as demonstrated in the following table:
+//! According to my runs, these benchmarks indicate that Oct usually outperforms the other tested crates -- as demonstrated in the following table:
 //!
-//! | Benchmark                          | [Bincode] | [Borsh] | Oct    | [Postcard] |
-//! | :--------------------------------- | --------: | ------: | -----: | ---------: |
-//! | `encode_u8`                        |     0.886 |   0.855 |  0.764 |      0.812 |
-//! | `encode_u32`                       |     1.225 |   0.938 |  0.764 |      2.653 |
-//! | `encode_u128`                      |     2.685 |   2.219 |  1.643 |      6.061 |
-//! | `encode_char`                      |     1.604 |   1.211 |  0.781 |      2.375 |
-//! | `encode_struct_unit`               |     0.000 |   0.000 |  0.000 |      0.000 |
-//! | `encode_struct_unnamed`            |     1.399 |   1.196 |  0.779 |      2.235 |
-//! | `encode_struct_named`              |     1.458 |   1.441 |  1.026 |      3.016 |
-//! | `encode_enum_unit`                 |     0.287 |   0.287 |  0.000 |      0.286 |
-//! | `decode_u8`                        |     0.865 |   0.916 |  1.003 |      0.911 |
-//! | `decode_non_zero_u8`               |     1.204 |   1.246 |  1.217 |      1.241 |
-//! | `decode_bool`                      |     1.067 |   1.036 |  1.028 |      1.187 |
-//! | **Total time** &#8594;             |    12.681 |  11.345 |  9.005 |     20.776 |
-//! | **Total deviation (p.c.)** &#8594; |       +41 |     +26 |     ±0 |       +131 |
+//! | Benchmark                          | Oct    | [Bincode] | [Borsh] | [Postcard] |
+//! | :--------------------------------- | -----: | --------: | ------: | ---------: |
+//! | `encode_u8`                        | 100.00 |    102.88 |  102.73 |     102.63 |
+//! | `encode_u16`                       | 100.00 |    110.67 |   95.62 |     204.46 |
+//! | `encode_u32`                       | 100.00 |    171.04 |  111.23 |     257.03 |
+//! | `encode_u64`                       | 100.00 |    171.14 |  116.93 |     379.45 |
+//! | `encode_u128`                      | 100.00 |    170.11 |  118.74 |     361.56 |
+//! | `encode_bool`                      | 100.00 |     94.86 |  101.49 |     100.03 |
+//! | `encode_unit_struct`               | 100.00 |     99.87 |   99.85 |      99.96 |
+//! | `encode_newtype`                   | 100.00 |    202.31 |  109.80 |     243.34 |
+//! | `encode_struct`                    | 100.00 |     50.19 |   50.09 |     118.93 |
+//! | `encode_enum`                      | 100.00 |    107.57 |   84.80 |     113.98 |
+//! | `decode_u8`                        | 100.00 |      5.65 |    5.83 |       5.52 |
+//! | `decode_u16`                       | 100.00 |    706.27 |  135.52 |     671.54 |
+//! | `decode_u32`                       | 100.00 |    651.28 |  105.80 |     410.24 |
+//! | `decode_u64`                       | 100.00 |    697.40 |  141.31 |    1549.56 |
+//! | `decode_u128`                      | 100.00 |    529.90 |  117.32 |    1425.68 |
+//! | `decode_bool`                      | 100.00 |     74.59 |   80.24 |      74.55 |
+//! | `decode_unit_struct`               | 100.00 |     76.05 |  115.57 |      65.87 |
+//! | `decode_newtype`                   | 100.00 |    859.92 |  105.83 |     247.19 |
+//! | `decode_struct`                    | 100.00 |     28.59 |   28.60 |      28.35 |
 //!
 //! [Bincode]: https://crates.io/crates/bincode/
 //! [Borsh]: https://crates.io/crates/borsh/
 //! [Postcard]: https://crates.io/crates/postcard/
 //!
-//! All quantities are measured in seconds unless otherwise noted.
+//! ... wherein quantities denote indicies (with `100` being the reference).
+//! Lower is better.
 //!
-//! Currently, Oct's weakest point seems to be decoding.
-//! Please note that I myself find large (relatively speaking) inconsistencies between runs in these last three benchmarks.
-//! Do feel free to conduct your own tests of Oct.
+//! Feedback is greatly appreciated on the mechanics of these benchmarks.
+//! Do also feel free to conduct your own tests of Oct.
 //!
 //! # Data model
 //!
@@ -62,7 +68,7 @@
 //!
 //! See specific types' implementations for notes on their data models.
 //!
-//! **Note that the data model is currently not stabilised,** and may not necessarily be in the near future (at least before [specialisation](https://github.com/rust-lang/rust/issues/31844/)).
+//! **Note that not all data models may be stabilised at the current moment.**
 //! It may therefore be undesired to store encodings long-term.
 //!
 //! # Usage & Examples
@@ -227,8 +233,10 @@
 
 #![cfg_attr(feature = "unstable-docs", feature(doc_cfg, rustdoc_internals))]
 
-#![forbid(invalid_atomic_ordering)]
-#![warn(missing_docs)]
+#![forbid(clippy::alloc_instead_of_core)]
+#![deny(          missing_docs)]
+#![forbid(clippy::std_instead_of_alloc)]
+#![forbid(clippy::std_instead_of_core)]
 
 #![cfg_attr(feature = "unstable-docs", allow(internal_features))]
 

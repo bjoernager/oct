@@ -3,6 +3,12 @@
 This is the changelog of [Oct](https://crates.io/crates/oct/).
 See `README.md` for more information.
 
+## 0.23.1
+
+* Update lints
+* Rewrite benchmarks
+* Update readme
+
 ## 0.23.0
 
 * Update lints

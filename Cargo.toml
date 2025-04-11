@@ -1,15 +1,14 @@
 [profile.release]
+opt-level     = 3
+lto           = "fat"
 codegen-units = 1
-
-lto       = "fat"
-opt-level = 3
 
 [workspace]
 members  = ["oct", "oct-benchmarks", "oct-macros"]
 resolver = "2"
 
 [workspace.package]
-version    = "0.23.0"
+version    = "0.23.1"
 authors    = ["Gabriel Bjørnager Jensen"]
 readme     = "README.md"
 repository = "https://mandelbrot.dk/bjoernager/oct/"
@@ -17,7 +16,6 @@ keywords   = ["encoding", "io", "network", "no-std", "serialization"]
 categories = ["encoding", "network-programming"]
 
 [workspace.lints.clippy]
-alloc_instead_of_core              = "forbid"
 arc_with_non_send_sync             = "forbid"
 as_pointer_underscore              = "forbid"
 as_ptr_cast_mut                    = "forbid"
@@ -145,8 +143,6 @@ same_name_method                   = "forbid"
 self_named_module_files            = "forbid"
 separated_literal_suffix           = "warn"
 single_char_pattern                = "warn"
-std_instead_of_alloc               = "forbid"
-std_instead_of_core                = "forbid"
 str_split_at_newline               = "warn"
 string_lit_as_bytes                = "forbid"
 string_lit_chars_any               = "warn"
@@ -179,3 +175,6 @@ verbose_bit_mask                   = "warn"
 verbose_file_reads                 = "warn"
 wildcard_dependencies              = "forbid"
 zero_prefixed_literal              = "allow"
+
+[workspace.lints.rust]
+invalid_atomic_ordering = "forbid"
